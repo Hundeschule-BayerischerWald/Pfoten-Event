@@ -3,8 +3,8 @@
 // Fix for "Cannot find name 'Deno'" error in non-Deno environments.
 declare const Deno: any;
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { SmtpClient } from 'https://deno.land/x/smtp/mod.ts';
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { SmtpClient } from "https://deno.land/x/smtp@v0.15.1/mod.ts";
 
 // --- DEINE SMTP KONFIGURATION ---
 const SMTP_HOST = 'host105.alfahosting-server.de';
@@ -82,7 +82,7 @@ serve(async (req) => {
             port: SMTP_PORT,
             username: SMTP_USER,
             password: SMTP_PASSWORD,
-            startTls: true, // Wichtige Änderung für Port 587
+            // STARTTLS wird von der neuen Bibliotheksversion automatisch gehandhabt
         }),
         SMTP_TIMEOUT_MS,
         'SMTP connection timed out'
