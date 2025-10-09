@@ -5,7 +5,7 @@
 import { render, h } from 'preact';
 import { useState, useEffect, useMemo } from 'preact/hooks';
 import htm from 'htm';
-import { createClient } from 'supabase';
+import { createClient, Session } from 'supabase';
 
 const html = htm.bind(h);
 
@@ -90,7 +90,6 @@ const api = {
         const { data: newCustomer, error: customerError } = await supabase.from('customers').insert({
             name: customer.name,
             phone: customer.phone,
-// FIX: Use `dog_name` to match the Customer interface and database schema.
             dog_name: customer.dog_name,
             email: customer.email.toLowerCase()
         }).select().single();
@@ -136,7 +135,6 @@ const api = {
 
         return {
             bookingId: newBookingId,
-// FIX: The returned `customer` object must conform to the `Customer` interface. `newCustomer` from the database is the correct object to return as it includes the generated ID and any transformations (like lowercased email).
             customer: newCustomer,
             bookedEventIds: eventIds
         };
@@ -164,7 +162,6 @@ const api = {
                 id: data.customer.id,
                 name: data.customer.name,
                 phone: data.customer.phone,
-// FIX: The `Customer` interface expects `dog_name`, not `dogName`.
                 dog_name: data.customer.dog_name,
                 email: data.customer.email,
             },
@@ -316,7 +313,6 @@ const BookingPanel = ({ selectedEvents, customer, onCustomerChange, onSubmit, er
     
     const showSubmitButton =
         customer.name.trim() !== '' &&
-// FIX: Use `dog_name` to match the customer state object.
         customer.dog_name.trim() !== '' &&
         customer.email.trim() !== '' &&
         customer.phone.trim() !== '' &&
@@ -348,7 +344,6 @@ const BookingPanel = ({ selectedEvents, customer, onCustomerChange, onSubmit, er
                     </div>
                     <div class="form-group">
                         <label for="dogName">Name des Hundes</label>
-{/* FIX: Use `dog_name` for the input's name and value to match the customer state object. */}
                         <input type="text" id="dogName" name="dog_name" value=${customer.dog_name} onInput=${handleInput} required />
                     </div>
                      <div class="form-group">
@@ -767,7 +762,6 @@ const CustomerBookingView = () => {
     const [allEvents, setAllEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
-// FIX: Use `dog_name` consistently to match the `Customer` interface.
     const [customer, setCustomer] = useState<Omit<Customer, 'id'>>({ name: '', phone: '', dog_name: '', email: '' });
     const [bookingError, setBookingError] = useState('');
     const [agreedAGB, setAgreedAGB] = useState(false);
@@ -812,7 +806,6 @@ const CustomerBookingView = () => {
             
             // Reset state after successful booking
             setSelectedEventIds([]);
-// FIX: Reset state using `dog_name` to maintain consistency.
             setCustomer({ name: '', phone: '', dog_name: '', email: '' });
             setAgreedAGB(false);
             setAgreedPrivacy(false);
@@ -919,17 +912,29 @@ const CustomerBookingView = () => {
     `;
 };
 
-const AdminLoginModal = ({ onLogin, onClose }) => {
+const AdminLoginModal = ({ onClose }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        const success = onLogin(email, password);
-        if (!success) {
+        setLoading(true);
+        
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
+        
+        setLoading(false);
+
+        if (signInError) {
             setError('Falsche E-Mail-Adresse oder Passwort.');
+        } else {
+            // Success is handled by the onAuthStateChange listener in the App component.
+            onClose();
         }
     };
 
@@ -953,8 +958,8 @@ const AdminLoginModal = ({ onLogin, onClose }) => {
                         ${error && html`<p class="error-message">${error}</p>`}
                     </div>
                     <div class="modal-footer">
-                         <button type="button" class="btn btn-secondary" onClick=${onClose}>Abbrechen</button>
-                         <button type="submit" class="btn btn-primary">Login</button>
+                         <button type="button" class="btn btn-secondary" onClick=${onClose} disabled=${loading}>Abbrechen</button>
+                         <button type="submit" class="btn btn-primary" disabled=${loading}>${loading ? 'Logge ein...' : 'Login'}</button>
                     </div>
                 </form>
             </div>
@@ -965,21 +970,31 @@ const AdminLoginModal = ({ onLogin, onClose }) => {
 
 const App = () => {
     const [view, setView] = useState('booking');
-    const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+    const [session, setSession] = useState<Session | null>(null);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-    const handleLoginAttempt = (email, password) => {
-        if (email.toLowerCase() === 'info@hs-bw.com' && password === 'poker128') {
-            setIsAdminAuthenticated(true);
-            setIsLoginModalOpen(false);
-            setView('admin');
-            return true;
-        }
-        return false;
-    };
+    useEffect(() => {
+        // Fetch the initial session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+        });
 
-    const handleLogout = () => {
-        setIsAdminAuthenticated(false);
+        // Listen for changes in auth state (login, logout)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+            if (session) { // If a session is established (login successful)
+                setIsLoginModalOpen(false);
+                setView('admin');
+            }
+        });
+
+        // Cleanup subscription on component unmount
+        return () => subscription.unsubscribe();
+    }, []);
+
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
         setView('booking');
     };
 
@@ -990,7 +1005,7 @@ const App = () => {
             <nav class="main-nav">
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Kurs buchen</button>
                 <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('manage')}>Buchung verwalten</button>
-                ${isAdminAuthenticated && html`
+                ${session && html`
                     <button class=${`btn ${view === 'admin' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('admin')}>Admin Panel</button>
                     <button class="btn btn-secondary" onClick=${handleLogout}>Logout</button>
                 `}
@@ -999,11 +1014,11 @@ const App = () => {
 
         <main>
             ${view === 'booking' && html`<${CustomerBookingView} />`}
-            ${isAdminAuthenticated && view === 'admin' && html`<${AdminPanel} />`}
+            ${session && view === 'admin' && html`<${AdminPanel} />`}
             ${view === 'manage' && html`<${BookingManagementPortal} />`}
         </main>
         
-        ${!isAdminAuthenticated && html`
+        ${!session && html`
             <footer class="app-footer">
                 <button class="admin-login-btn" onClick=${() => setIsLoginModalOpen(true)}>Admin Login</button>
             </footer>
@@ -1011,7 +1026,6 @@ const App = () => {
 
         ${isLoginModalOpen && html`
             <${AdminLoginModal} 
-                onLogin=${handleLoginAttempt}
                 onClose=${() => setIsLoginModalOpen(false)}
             />
         `}
