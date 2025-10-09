@@ -550,6 +550,22 @@ body::before {
     margin-top: 1rem;
 }
 
+.forgot-booking-id-btn {
+    background: none;
+    border: none;
+    color: var(--secondary-color);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0;
+    margin-top: 1.5rem;
+    transition: color var(--transition-speed);
+}
+
+.forgot-booking-id-btn:hover {
+    color: var(--primary-color);
+}
+
 .manage-portal {
     background: var(--surface-color);
     padding: 2rem;

@@ -1,4 +1,3 @@
-
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -273,6 +272,69 @@ const toInputTimeString = (date: Date) => date.toTimeString().split(' ')[0].subs
 
 
 // --- KOMPONENTEN ---
+
+const ForgotPasswordModal = ({ onClose }) => {
+    const [email, setEmail] = useState('');
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        setMessage('');
+        setLoading(true);
+
+        try {
+            const { error: invokeError } = await supabase.functions.invoke('resend-booking-info', {
+                body: { email: email.trim().toLowerCase() }
+            });
+
+            if (invokeError) {
+                throw new Error("Ein Fehler ist aufgetreten. Bitte versuche es später erneut.");
+            }
+            
+            setMessage("Anfrage erhalten. Wenn für diese E-Mail-Adresse eine Buchung existiert, haben wir dir eine E-Mail mit den Details gesendet.");
+
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    return html`
+        <div class="modal-overlay" onClick=${onClose}>
+            <div class="modal-content" onClick=${e => e.stopPropagation()}>
+                <form onSubmit=${handleSubmit}>
+                    <div class="modal-header">
+                        <h2>Buchungsnummer anfordern</h2>
+                        <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        ${!message ? html`
+                            <p>Gib die E-Mail-Adresse ein, die du bei der Buchung verwendet hast. Wir senden dir dann deine Buchungsnummer(n) zu.</p>
+                            <div class="form-group">
+                                <label for="recovery-email">E-Mail</label>
+                                <input type="email" id="recovery-email" name="email" value=${email} onInput=${e => setEmail(e.target.value)} required autocomplete="email" />
+                            </div>
+                        ` : ''}
+                        
+                        ${error && html`<p class="error-message">${error}</p>`}
+                        ${message && html`<p class="success-message">${message}</p>`}
+                    </div>
+                    <div class="modal-footer">
+                         <button type="button" class="btn btn-secondary" onClick=${onClose} disabled=${loading}>Abbrechen</button>
+                         ${!message && html`
+                            <button type="submit" class="btn btn-primary" disabled=${loading}>${loading ? 'Sendet...' : 'Senden'}</button>
+                         `}
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+};
+
 
 const EventItem = ({ event, onSelect, isSelected, isLocked }) => {
     const isFull = event.booked_capacity >= event.total_capacity;
@@ -598,6 +660,7 @@ const BookingManagementPortal = () => {
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [hasChanges, setHasChanges] = useState(false);
+    const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
 
     useEffect(() => {
         if (booking) {
@@ -718,7 +781,11 @@ const BookingManagementPortal = () => {
                         ${isLoading ? 'Sucht...' : 'Buchung suchen'}
                     </button>
                 </form>
+                 <button class="forgot-booking-id-btn" onClick=${() => setIsForgotModalOpen(true)}>
+                    Buchungsnummer vergessen?
+                </button>
             </section>
+            ${isForgotModalOpen && html`<${ForgotPasswordModal} onClose=${() => setIsForgotModalOpen(false)} />`}
         `;
     }
 
