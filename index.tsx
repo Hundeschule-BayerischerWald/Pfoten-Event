@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -99,7 +100,9 @@ const api = {
         }
 
         // 4. Erstelle neue Buchung
-        const newBookingId = `buchung-${Date.now()}`;
+        const sanitizedDogName = customer.dog_name.trim().replace(/\s+/g, '-');
+        const randomNumber = Math.floor(10000 + Math.random() * 90000);
+        const newBookingId = `${sanitizedDogName}-${randomNumber}`;
         const { error: bookingError } = await supabase.from('bookings').insert({
             id: newBookingId,
             customer_id: newCustomer.id
@@ -391,7 +394,7 @@ const SuccessModal = ({ bookingDetails, onClose }) => {
                 </div>
                 <div class="modal-body">
                     <p>Vielen Dank, ${bookingDetails.customerName}!</p>
-                    <p>Deine Anmeldung war erfolgreich. Wir haben dir eine Bestätigung per E-Mail gesendet (simuliert).</p>
+                    <p>Deine Anmeldung war erfolgreich. Wir haben dir eine Bestätigung per E-Mail gesendet.</p>
                     <p class="booking-id">Deine Buchungsnummer lautet: <strong>${bookingDetails.bookingId}</strong></p>
                 </div>
                 <div class="modal-footer">
@@ -645,6 +648,30 @@ const BookingManagementPortal = () => {
             setBooking(updatedBooking); // update local state with the saved data
             setManagedEventIds(updatedBooking.bookedEventIds);
             setSuccessMessage('Deine Buchung wurde erfolgreich aktualisiert!');
+
+            // E-Mail-Versand für Update anstoßen
+            try {
+                const updatedEventsDetails = allEvents
+                    .filter(event => updatedBooking.bookedEventIds.includes(event.id))
+                    .map(e => ({
+                        title: e.title,
+                        date: new Date(e.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
+                        location: e.location
+                    }));
+                
+                await supabase.functions.invoke('send-smtp-email', {
+                    body: {
+                        type: 'update-booking',
+                        customerName: updatedBooking.customer.name,
+                        customerEmail: updatedBooking.customer.email,
+                        bookingId: updatedBooking.bookingId,
+                        events: updatedEventsDetails
+                    }
+                });
+            } catch (emailError) {
+                console.warn("E-Mail-Funktion konnte nicht aufgerufen werden. Stelle sicher, dass die Supabase Edge Function 'send-smtp-email' deployed ist.", emailError);
+            }
+
         } catch (err) {
             setError(err.message);
         } finally {
@@ -684,7 +711,7 @@ const BookingManagementPortal = () => {
                     <p>Gib deine Buchungsnummer ein, um deine Termine zu bearbeiten.</p>
                     <div class="form-group">
                         <label for="bookingId">Buchungsnummer</label>
-                        <input type="text" id="bookingId" name="bookingId" value=${bookingIdInput} onInput=${e => setBookingIdInput(e.target.value)} required placeholder="z.B. buchung-1234567890" />
+                        <input type="text" id="bookingId" name="bookingId" value=${bookingIdInput} onInput=${e => setBookingIdInput(e.target.value)} required placeholder="z.B. Bello-12345" />
                     </div>
                     ${error && html`<p class="error-message">${error}</p>`}
                     <button type="submit" class="btn btn-primary" disabled=${isLoading}>
@@ -804,6 +831,29 @@ const CustomerBookingView = () => {
             setSuccessfulBookingDetails({ bookingId: booking.bookingId, customerName: customer.name });
             setBookingSuccess(true);
             
+            // E-Mail-Versand anstoßen
+            try {
+                const bookedEventsDetails = allEvents
+                    .filter(event => selectedEventIds.includes(event.id))
+                    .map(e => ({
+                        title: e.title,
+                        date: new Date(e.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
+                        location: e.location
+                    }));
+
+                await supabase.functions.invoke('send-smtp-email', {
+                    body: {
+                        type: 'new-booking',
+                        customerName: customer.name,
+                        customerEmail: customer.email,
+                        bookingId: booking.bookingId,
+                        events: bookedEventsDetails
+                    }
+                });
+            } catch (emailError) {
+                console.warn("E-Mail-Funktion konnte nicht aufgerufen werden. Stelle sicher, dass die Supabase Edge Function 'send-smtp-email' deployed ist.", emailError);
+            }
+
             // Reset state after successful booking
             setSelectedEventIds([]);
             setCustomer({ name: '', phone: '', dog_name: '', email: '' });
@@ -1001,7 +1051,7 @@ const App = () => {
     return html`
         <header class="booking-tool-header">
             <h1>Kursanmeldung Hundeschule</h1>
-            <p>Wähle deine Wunschtermine, verwalte deine Buchung oder greife auf das Admin-Panel zu.</p>
+            <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
             <nav class="main-nav">
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Kurs buchen</button>
                 <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('manage')}>Buchung verwalten</button>
