@@ -4,7 +4,8 @@
 declare const Deno: any;
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { SmtpClient } from "https://deno.land/x/smtp@v0.15.1/mod.ts";
+// KORREKTE IMPORTIERUNG: Wir importieren die SmtpClient-Klasse.
+import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // --- SMTP KONFIGURATION (identisch zur ersten Funktion) ---
@@ -13,18 +14,7 @@ const SMTP_PORT = 587; // STARTTLS Port
 const SMTP_USER = 'anmeldungen@hs-bw.com';
 const SMTP_PASSWORD = Deno.env.get('SMTP_PASSWORD');
 const FROM_EMAIL = 'anmeldungen@hs-bw.com';
-const SMTP_TIMEOUT_MS = 15000; // 15 seconds
 
-// Helper to add a timeout to any promise
-function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage = 'Operation timed out'): Promise<T> {
-  const timeout = new Promise<T>((_, reject) => {
-    const id = setTimeout(() => {
-      clearTimeout(id);
-      reject(new Error(errorMessage));
-    }, ms);
-  });
-  return Promise.race([promise, timeout]);
-}
 
 // Hilfsfunktion zum Erstellen der HTML-E-Mail
 function createRecoveryEmailHtml(customerName: string, bookingIds: string[]) {
@@ -50,10 +40,17 @@ function createRecoveryEmailHtml(customerName: string, bookingIds: string[]) {
 }
 
 serve(async (req) => {
-    console.log(`[resend-booking-info] Received ${req.method} request.`);
-    if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' } });
-    }
+  // CORS Preflight Request
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: { 
+      'Access-Control-Allow-Origin': '*', 
+      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' 
+    }});
+  }
+  
+  // Die Client-Instanz wird außerhalb des try-Blocks deklariert,
+  // damit sie im finally-Block zugänglich ist.
+  const client = new SmtpClient();
 
     try {
         const { email } = await req.json();
@@ -77,7 +74,7 @@ serve(async (req) => {
 
         if (customerError) {
              console.error('[resend-booking-info] Error fetching customer:', customerError.message);
-             // Still return a generic success message to the user for security
+             // Aus Sicherheitsgründen immer eine generische Erfolgsmeldung zurückgeben
              return new Response(JSON.stringify({ message: 'Anfrage verarbeitet.' }), {
                 status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
              });
@@ -120,35 +117,24 @@ serve(async (req) => {
         }
         
         const htmlContent = createRecoveryEmailHtml(customerData.name, bookingIds);
-        const client = new SmtpClient();
         
-        console.log(`[resend-booking-info] Attempting to connect to SMTP server: ${SMTP_HOST}:${SMTP_PORT} using STARTTLS.`);
-        await withTimeout(
-            client.connect({
-                hostname: SMTP_HOST,
-                port: SMTP_PORT,
-                username: SMTP_USER,
-                password: SMTP_PASSWORD,
-                // STARTTLS wird von der neuen Bibliotheksversion automatisch gehandhabt
-            }),
-            SMTP_TIMEOUT_MS,
-            'SMTP connection timed out'
-        );
+        console.log(`[resend-booking-info] Connecting to SMTP server ${SMTP_HOST}:${SMTP_PORT}...`);
+        await client.connectTLS({
+          hostname: SMTP_HOST,
+          port: SMTP_PORT,
+          username: SMTP_USER,
+          password: SMTP_PASSWORD,
+        });
         console.log("[resend-booking-info] SMTP connection successful.");
-
-        console.log(`[resend-booking-info] Sending recovery email to ${email}`);
-        await withTimeout(
-            client.send({
-                from: `Hundeschule <${FROM_EMAIL}>`,
-                to: email,
-                subject: "Deine angeforderten Buchungsnummern",
-                html: htmlContent,
-            }),
-            SMTP_TIMEOUT_MS,
-            'SMTP send operation timed out'
-        );
-        await client.close();
-        console.log("[resend-booking-info] Recovery email sent and connection closed.");
+        
+        console.log(`[resend-booking-info] Attempting to send recovery email to ${email}`);
+        await client.send({
+          from: `Hundeschule <${FROM_EMAIL}>`,
+          to: email,
+          subject: "Deine angeforderten Buchungsnummern",
+          html: htmlContent,
+        });
+        console.log("[resend-booking-info] Recovery email sent.");
 
         return new Response(JSON.stringify({ message: 'Anfrage verarbeitet.' }), {
             status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -156,15 +142,16 @@ serve(async (req) => {
 
     } catch (error) {
         console.error("[resend-booking-info] Function Error:", error);
-        let errorMessage = "Ein interner Fehler ist aufgetreten. Die E-Mail konnte nicht gesendet werden.";
-        if (error.message.toLowerCase().includes('timed out')) {
-            errorMessage = `Der E-Mail-Server (${SMTP_HOST}) antwortet nicht. Die Verbindung wurde nach ${SMTP_TIMEOUT_MS / 1000} Sekunden abgebrochen.`;
-        } else if (error.message.toLowerCase().includes('authentication')) {
-            errorMessage = "Anmeldung am E-Mail-Server fehlgeschlagen. Bitte überprüfe die Zugangsdaten.";
-        }
-        
-        return new Response(JSON.stringify({ error: errorMessage }), {
-            status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        // Auch bei einem internen Fehler geben wir eine generische Antwort zurück,
+        // um keine Informationen über das System preiszugeben.
+        return new Response(JSON.stringify({ message: 'Anfrage verarbeitet.' }), {
+            status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
+    } finally {
+        // Stelle sicher, dass die Verbindung immer geschlossen wird.
+        if (client.isConnected()) {
+            console.log("[resend-booking-info] Closing SMTP connection.");
+            await client.close();
+        }
     }
 });

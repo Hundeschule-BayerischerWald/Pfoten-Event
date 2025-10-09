@@ -5,7 +5,7 @@
 import { render, h } from 'preact';
 import { useState, useEffect, useMemo } from 'preact/hooks';
 import htm from 'htm';
-import { createClient, Session } from 'supabase';
+import { createClient, Session } from '@supabase/supabase-js';
 
 const html = htm.bind(h);
 
@@ -161,11 +161,12 @@ const api = {
         const booking: Booking = {
             bookingId: data.id,
             customer: {
-                id: data.customer.id,
-                name: data.customer.name,
-                phone: data.customer.phone,
-                dog_name: data.customer.dog_name,
-                email: data.customer.email,
+                // FIX: Supabase returns a to-one relationship as an array when the foreign key column is not unique. Accessing the first element.
+                id: data.customer[0].id,
+                name: data.customer[0].name,
+                phone: data.customer[0].phone,
+                dog_name: data.customer[0].dog_name,
+                email: data.customer[0].email,
             },
             bookedEventIds: data.events.map((be: any) => be.event_id),
         };

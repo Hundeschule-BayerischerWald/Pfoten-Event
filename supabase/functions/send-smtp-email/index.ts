@@ -4,26 +4,16 @@
 declare const Deno: any;
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { SmtpClient } from "https://deno.land/x/smtp@v0.15.1/mod.ts";
+// KORREKTE IMPORTIERUNG: Wir importieren die SmtpClient-Klasse.
+import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+
 
 // --- DEINE SMTP KONFIGURATION ---
 const SMTP_HOST = 'host105.alfahosting-server.de';
-const SMTP_PORT = 587; // STARTTLS Port (Änderung von 465)
+const SMTP_PORT = 587; // STARTTLS Port
 const SMTP_USER = 'anmeldungen@hs-bw.com';
 const SMTP_PASSWORD = Deno.env.get('SMTP_PASSWORD'); 
 const FROM_EMAIL = 'anmeldungen@hs-bw.com';
-const SMTP_TIMEOUT_MS = 15000; // 15 seconds
-
-// Helper to add a timeout to any promise
-function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage = 'Operation timed out'): Promise<T> {
-  const timeout = new Promise<T>((_, reject) => {
-    const id = setTimeout(() => {
-      clearTimeout(id);
-      reject(new Error(errorMessage));
-    }, ms);
-  });
-  return Promise.race([promise, timeout]);
-}
 
 // Hilfsfunktion zum Erstellen der HTML-E-Mail
 function createEmailHtml(title: string, customerName: string, bookingId: string, events: any[]) {
@@ -52,13 +42,16 @@ function createEmailHtml(title: string, customerName: string, bookingId: string,
 }
 
 serve(async (req) => {
-  console.log(`[send-smtp-email] Received ${req.method} request.`);
+  // CORS Preflight Request
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: { 
       'Access-Control-Allow-Origin': '*', 
       'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' 
     }});
   }
+  
+  // KORREKTE IMPLEMENTIERUNG: Die SmtpClient-Instanz wird erstellt und verwendet.
+  const client = new SmtpClient();
 
   try {
     if (!SMTP_PASSWORD) {
@@ -73,38 +66,25 @@ serve(async (req) => {
     const title = type === 'new-booking' ? 'Buchung erfolgreich!' : 'Buchung aktualisiert!';
     const htmlContent = createEmailHtml(title, customerName, bookingId, events);
 
-    const client = new SmtpClient();
-    console.log(`[send-smtp-email] Attempting to connect to SMTP server: ${SMTP_HOST}:${SMTP_PORT} using STARTTLS.`);
-    
-    await withTimeout(
-        client.connect({
-            hostname: SMTP_HOST,
-            port: SMTP_PORT,
-            username: SMTP_USER,
-            password: SMTP_PASSWORD,
-            // STARTTLS wird von der neuen Bibliotheksversion automatisch gehandhabt
-        }),
-        SMTP_TIMEOUT_MS,
-        'SMTP connection timed out'
-    );
+    console.log(`[send-smtp-email] Connecting to SMTP server ${SMTP_HOST}:${SMTP_PORT}...`);
+    // Verwende connectTLS für Port 587 (STARTTLS)
+    await client.connectTLS({
+      hostname: SMTP_HOST,
+      port: SMTP_PORT,
+      username: SMTP_USER,
+      password: SMTP_PASSWORD,
+    });
     console.log("[send-smtp-email] SMTP connection successful.");
 
-    console.log(`[send-smtp-email] Sending email to ${customerEmail}`);
-    await withTimeout(
-        client.send({
-            from: `Hundeschule <${FROM_EMAIL}>`,
-            to: customerEmail,
-            subject: subject,
-            html: htmlContent,
-        }),
-        SMTP_TIMEOUT_MS,
-        'SMTP send operation timed out'
-    );
+    console.log(`[send-smtp-email] Attempting to send email to ${customerEmail}`);
+    await client.send({
+      from: `Hundeschule <${FROM_EMAIL}>`,
+      to: customerEmail,
+      subject: subject,
+      html: htmlContent,
+    });
     console.log("[send-smtp-email] Email sent successfully.");
-
-    await client.close();
-    console.log("[send-smtp-email] SMTP connection closed.");
-
+    
     return new Response(JSON.stringify({ message: 'Email sent successfully!' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
@@ -112,9 +92,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("[send-smtp-email] Function Error:", error);
     let errorMessage = "Ein interner Fehler ist aufgetreten. Die E-Mail konnte nicht gesendet werden.";
-    if (error.message.toLowerCase().includes('timed out')) {
-        errorMessage = `Der E-Mail-Server (${SMTP_HOST}) antwortet nicht. Die Verbindung wurde nach ${SMTP_TIMEOUT_MS / 1000} Sekunden abgebrochen.`;
-    } else if (error.message.toLowerCase().includes('authentication')) {
+    if (error.message && error.message.toLowerCase().includes('authentication')) {
         errorMessage = "Anmeldung am E-Mail-Server fehlgeschlagen. Bitte überprüfe die Zugangsdaten.";
     }
     
@@ -122,5 +100,11 @@ serve(async (req) => {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
+  } finally {
+      // Stelle sicher, dass die Verbindung immer geschlossen wird.
+      if (client.isConnected()) {
+          console.log("[send-smtp-email] Closing SMTP connection.");
+          await client.close();
+      }
   }
 });
