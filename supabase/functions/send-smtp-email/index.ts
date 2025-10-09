@@ -1,21 +1,25 @@
 // supabase/functions/send-smtp-email/index.ts
 
+// WICHTIG: Diese Funktion wurde umgestellt, um Resend (resend.com) anstelle von direktem SMTP zu verwenden.
+// Direkter SMTP-Versand aus Supabase Edge Functions ist aufgrund von Netzwerk-Einschränkungen unzuverlässig.
+// Resend bietet eine robuste API und eine hohe Zustellbarkeit.
+
+// 1. Erstelle einen kostenlosen Account auf resend.com
+// 2. Erstelle einen API-Schlüssel.
+// 3. Füge den API-Schlüssel als Secret in deinem Supabase-Projekt hinzu:
+//    Name: RESEND_API_KEY, Wert: re_...
+
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+
 // Fix for "Cannot find name 'Deno'" error in non-Deno environments.
 declare const Deno: any;
 
-import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-// KORREKTE IMPORTIERUNG: Wir importieren die SmtpClient-Klasse.
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+// HINWEIS: Um von deiner eigenen Domain zu senden, musst du sie in Resend verifizieren.
+// Für den Anfang und zum Testen wird die Standard-Resend-Domain verwendet.
+const FROM_EMAIL = 'Hundeschule <onboarding@resend.dev>';
+const YOUR_DOMAIN_EMAIL = 'anmeldungen@hs-bw.com'; // Dies ist die E-Mail, an die geantwortet werden soll
 
-
-// --- DEINE SMTP KONFIGURATION ---
-const SMTP_HOST = 'host105.alfahosting-server.de';
-const SMTP_PORT = 587; // STARTTLS Port
-const SMTP_USER = 'anmeldungen@hs-bw.com';
-const SMTP_PASSWORD = Deno.env.get('SMTP_PASSWORD'); 
-const FROM_EMAIL = 'anmeldungen@hs-bw.com';
-
-// Hilfsfunktion zum Erstellen der HTML-E-Mail
 function createEmailHtml(title: string, customerName: string, bookingId: string, events: any[]) {
   const eventsHtml = events.map(event => `
     <div style="background-color: #f0f0f0; border-left: 4px solid #007bff; padding: 10px 15px; margin-bottom: 10px; border-radius: 4px;">
@@ -36,27 +40,20 @@ function createEmailHtml(title: string, customerName: string, bookingId: string,
     <p>vielen Dank! Hier ist die Zusammenfassung deiner Termine:</p>${eventsHtml}
     <div class="booking-id">Deine Buchungsnummer lautet: <strong>${bookingId}</strong></div>
     <p style="margin-top: 20px; font-size: 12px; color: #888;">
-      Dies ist eine automatisch generierte E-Mail. Bei Fragen antworte bitte nicht auf diese E-Mail, sondern kontaktiere uns direkt.
+      Bei Fragen antworte bitte direkt auf diese E-Mail.
     </p></div></body></html>
   `;
 }
 
 serve(async (req) => {
-  // CORS Preflight Request
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: { 
-      'Access-Control-Allow-Origin': '*', 
-      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' 
-    }});
+    return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }});
   }
   
-  // KORREKTE IMPLEMENTIERUNG: Die SmtpClient-Instanz wird erstellt und verwendet.
-  const client = new SmtpClient();
-
   try {
-    if (!SMTP_PASSWORD) {
-        console.error("[send-smtp-email] FATAL: SMTP_PASSWORD secret is not set.");
-        throw new Error("SMTP_PASSWORD ist nicht in den Supabase Secrets gesetzt. Bitte füge es hinzu.");
+    if (!RESEND_API_KEY) {
+        console.error("[send-smtp-email] FATAL: RESEND_API_KEY secret is not set.");
+        throw new Error("RESEND_API_KEY ist nicht in den Supabase Secrets gesetzt.");
     }
 
     const { type, customerName, customerEmail, bookingId, events } = await req.json();
@@ -66,45 +63,42 @@ serve(async (req) => {
     const title = type === 'new-booking' ? 'Buchung erfolgreich!' : 'Buchung aktualisiert!';
     const htmlContent = createEmailHtml(title, customerName, bookingId, events);
 
-    console.log(`[send-smtp-email] Connecting to SMTP server ${SMTP_HOST}:${SMTP_PORT}...`);
-    // Verwende connectTLS für Port 587 (STARTTLS)
-    await client.connectTLS({
-      hostname: SMTP_HOST,
-      port: SMTP_PORT,
-      username: SMTP_USER,
-      password: SMTP_PASSWORD,
-    });
-    console.log("[send-smtp-email] SMTP connection successful.");
+    console.log(`[send-smtp-email] Attempting to send email to ${customerEmail} via Resend API.`);
 
-    console.log(`[send-smtp-email] Attempting to send email to ${customerEmail}`);
-    await client.send({
-      from: `Hundeschule <${FROM_EMAIL}>`,
-      to: customerEmail,
-      subject: subject,
-      html: htmlContent,
+    const resendResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+            from: FROM_EMAIL,
+            to: customerEmail,
+            subject: subject,
+            html: htmlContent,
+            reply_to: YOUR_DOMAIN_EMAIL
+        }),
     });
-    console.log("[send-smtp-email] Email sent successfully.");
+
+    const responseData = await resendResponse.json();
+
+    if (!resendResponse.ok) {
+        console.error("[send-smtp-email] Resend API Error:", responseData);
+        throw new Error(`Resend API returned status ${resendResponse.status}`);
+    }
+    
+    console.log("[send-smtp-email] Email sent successfully via Resend:", responseData.id);
     
     return new Response(JSON.stringify({ message: 'Email sent successfully!' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
+
   } catch (error) {
-    console.error("[send-smtp-email] Function Error:", error);
-    let errorMessage = "Ein interner Fehler ist aufgetreten. Die E-Mail konnte nicht gesendet werden.";
-    if (error.message && error.message.toLowerCase().includes('authentication')) {
-        errorMessage = "Anmeldung am E-Mail-Server fehlgeschlagen. Bitte überprüfe die Zugangsdaten.";
-    }
-    
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    console.error("[send-smtp-email] Function Error:", error.message);
+    return new Response(JSON.stringify({ error: "Die E-Mail konnte nicht gesendet werden.", details: error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
-  } finally {
-      // Stelle sicher, dass die Verbindung immer geschlossen wird.
-      if (client.isConnected()) {
-          console.log("[send-smtp-email] Closing SMTP connection.");
-          await client.close();
-      }
   }
 });
