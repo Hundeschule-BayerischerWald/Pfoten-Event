@@ -437,11 +437,11 @@ const BookingPanel = ({ selectedEvents, customer, onCustomerChange, onSubmit, er
                     
                     <div class="form-group-checkbox">
                         <input type="checkbox" id="agb" name="agb" checked=${agreedAGB} onChange=${e => onAgreedAGBChange(e.target.checked)} required />
-                        <label for="agb">Ich habe die <a href="#">AGB's</a> gelesen und akzeptiere sie.</label>
+                        <label for="agb">Ich habe die <a href="https://drive.google.com/file/d/1C9Mdt_DV5TwItH_K1ZSaMhzNrDukCHRm/view" target="_blank" rel="noopener noreferrer">AGB's</a> gelesen und akzeptiere sie.</label>
                     </div>
                     <div class="form-group-checkbox">
                         <input type="checkbox" id="privacy" name="privacy" checked=${agreedPrivacy} onChange=${e => onAgreedPrivacyChange(e.target.checked)} required />
-                        <label for="privacy">Ich habe die <a href="#">Datenschutzerklärung</a> gelesen und akzeptiere sie.</label>
+                        <label for="privacy">Ich habe die <a href="https://hs-bw.com/datenschutzerklaerung/" target="_blank" rel="noopener noreferrer">Datenschutzerklärung</a> gelesen und akzeptiere sie.</label>
                     </div>
 
                     ${error && html`<p class="error-message">${error}</p>`}
