@@ -124,7 +124,12 @@ serve(async (req) => {
             console.error("[resend-booking-info] Error fetching or processing PDF attachment:", pdfError.message);
         }
 
-        const manageUrl = 'https://pfoten-event.vercel.app/';
+        let manageUrl = 'https://pfoten-event.vercel.app/?view=manage';
+        // If there's only one booking, link to it directly for convenience.
+        if (bookingIds.length === 1) {
+            manageUrl += `&bookingId=${bookingIds[0]}`;
+        }
+        
         const htmlContent = createRecoveryEmailHtml(customerData.name, bookingIds, manageUrl);
         
         const emailPayload: any = {

@@ -227,10 +227,10 @@ const api = {
         return {...data, date: new Date(data.date)};
     },
     updateEvent: async (eventId: string, updatedEventData: Partial<Omit<Event, 'id' | 'date' | 'total_capacity' | 'booked_capacity'>> & { date?: Date; totalCapacity?: number }): Promise<Event> => {
-        // 1. Teilnehmer vor der Aktualisierung abrufen
+        // 1. Teilnehmer und deren Booking-IDs vor der Aktualisierung abrufen
         const { data: eventWithBookings, error: fetchError } = await supabase
             .from('events')
-            .select('*, bookings_events(bookings(customers(*)))')
+            .select('*, bookings_events(bookings(id, customers(*)))')
             .eq('id', eventId)
             .single();
 
@@ -239,8 +239,11 @@ const api = {
         }
         
         const participants = eventWithBookings?.bookings_events
-            .map(be => be.bookings?.customers)
-            .filter(Boolean) ?? [];
+            .map(be => ({
+                customer: be.bookings?.customers,
+                bookingId: be.bookings?.id,
+            }))
+            .filter(p => p.customer && p.bookingId) ?? [];
         
         // 2. Event aktualisieren
         const payload: any = { ...updatedEventData };
@@ -258,7 +261,7 @@ const api = {
             try {
                 await supabase.functions.invoke('send-update-notification', {
                     body: {
-                        customers: participants,
+                        participants: participants,
                         event: {
                             title: updatedEventResult.title,
                             date: new Date(updatedEventResult.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
@@ -522,6 +525,28 @@ const SuccessModal = ({ bookingDetails, onClose }) => {
     `;
 };
 
+const EmailExistsModal = ({ email, onClose, onGoToManage, onForgotPassword }) => {
+    return html`
+        <div class="modal-overlay" onClick=${onClose}>
+            <div class="modal-content" onClick=${e => e.stopPropagation()}>
+                <div class="modal-header">
+                    <h2>E-Mail-Adresse bereits registriert</h2>
+                    <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
+                </div>
+                <div class="modal-body">
+                    <p>Für die E-Mail-Adresse <strong>${email}</strong> existiert bereits eine Buchung. Du kannst keine neue Anmeldung erstellen.</p>
+                    <p>Möchtest du deine bestehende Buchung verwalten oder deine Buchungsnummer anfordern?</p>
+                </div>
+                <div class="modal-footer">
+                     <button type="button" class="btn btn-secondary" onClick=${onForgotPassword}>Buchungsnummer vergessen?</button>
+                     <button type="button" class="btn btn-primary" onClick=${onGoToManage}>Zur Buchungsverwaltung</button>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+
 const EventFormModal = ({ event, onSave, onClose }) => {
     const [formData, setFormData] = useState({
         title: '',
@@ -699,13 +724,22 @@ const BookingOverview = () => {
                 const participants = event.bookings_events
                     .map(be => be.bookings?.customers)
                     .filter(Boolean); // Filter out any null/undefined customers
+                
+                const categoryClass = `event-category-${event.category.toLowerCase()}`;
 
                 return html`
                     <div class="overview-event-group" key=${event.id}>
-                        <h3 class="overview-event-title">
-                            <span>${event.title} (${formatDate(new Date(event.date))})</span>
-                            <span class="overview-event-capacity">${event.booked_capacity} / ${event.total_capacity} Plätze</span>
-                        </h3>
+                        <div class=${`overview-event-header ${categoryClass}`}>
+                            <div class="overview-event-info">
+                                <strong class="overview-event-title">${event.title}</strong>
+                                <span class="overview-event-details">${formatDate(new Date(event.date))} - ${formatTime(new Date(event.date))}</span>
+                                <span class="overview-event-details">Treffpunkt: ${event.location}</span>
+                            </div>
+                            <div class="overview-event-capacity">
+                                ${event.booked_capacity} / ${event.total_capacity} Plätze
+                            </div>
+                        </div>
+
                         ${participants.length > 0 ? html`
                             <ul class="participant-list">
                                 ${participants.map(customer => html`
@@ -1115,7 +1149,7 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
 };
 
 
-const CustomerBookingView = () => {
+const CustomerBookingView = ({ setView }) => {
     const [allEvents, setAllEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
@@ -1125,6 +1159,8 @@ const CustomerBookingView = () => {
     const [agreedPrivacy, setAgreedPrivacy] = useState(false);
     const [bookingSuccess, setBookingSuccess] = useState(false);
     const [successfulBookingDetails, setSuccessfulBookingDetails] = useState(null);
+    const [isEmailExistsModalOpen, setIsEmailExistsModalOpen] = useState(false);
+    const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
 
     const loadInitialData = async () => {
         setLoading(true);
@@ -1195,7 +1231,11 @@ const CustomerBookingView = () => {
             setAgreedPrivacy(false);
 
         } catch (err) {
-            setBookingError(err.message);
+            if (err.message.includes('Für diese E-Mail-Adresse existiert bereits eine Buchung')) {
+                setIsEmailExistsModalOpen(true);
+            } else {
+                setBookingError(err.message);
+            }
         }
     }
     
@@ -1290,6 +1330,25 @@ const CustomerBookingView = () => {
             <${SuccessModal} 
                 bookingDetails=${successfulBookingDetails}
                 onClose=${handleCloseModal}
+            />
+        `}
+        ${isEmailExistsModalOpen && html`
+            <${EmailExistsModal} 
+                email=${customer.email}
+                onClose=${() => setIsEmailExistsModalOpen(false)}
+                onGoToManage=${() => {
+                    setIsEmailExistsModalOpen(false);
+                    setView('manage');
+                }}
+                onForgotPassword=${() => {
+                    setIsEmailExistsModalOpen(false);
+                    setIsForgotModalOpen(true);
+                }}
+            />
+        `}
+        ${isForgotModalOpen && html`
+            <${ForgotPasswordModal} 
+                onClose=${() => setIsForgotModalOpen(false)}
             />
         `}
     `;
@@ -1411,7 +1470,7 @@ const App = () => {
         </header>
 
         <main>
-            ${view === 'booking' && html`<${CustomerBookingView} />`}
+            ${view === 'booking' && html`<${CustomerBookingView} setView=${setView} />`}
             ${view === 'manage' && html`<${BookingManagementPortal} setView=${setView} initialBookingId=${initialBookingId} />`}
             
             ${session && view === 'admin' && userRole === 'admin' && html`<${AdminPanel} />`}

@@ -559,21 +559,38 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     margin-bottom: 2rem;
 }
 
-.overview-event-title {
-    background-color: var(--disabled-color);
-    padding: 0.75rem 1rem;
+.overview-event-header {
+    padding: 1rem;
     border-radius: 6px;
     margin: 0 0 1rem 0;
-    font-size: 1.2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    color: var(--text-on-colored-bg);
+}
+
+.overview-event-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.overview-event-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.overview-event-details {
+    font-size: 0.9rem;
+    opacity: 0.9;
 }
 
 .overview-event-capacity {
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--secondary-color);
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: right;
+    flex-shrink: 0;
+    margin-left: 1rem;
 }
 
 .participant-list {

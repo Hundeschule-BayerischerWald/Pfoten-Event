@@ -19,7 +19,7 @@ const CATEGORY_COLORS = {
     "Tomato": { bg: "Tomato", text: "white" }
 };
 
-function createUpdateEmailHtml(customerName: string, event: any) {
+function createUpdateEmailHtml(customerName: string, event: any, manageUrl: string) {
   const styleInfo = CATEGORY_COLORS[event.category] || { bg: '#fff3cd', text: '#333' };
   const eventStyle = `background-color: ${styleInfo.bg}; color: ${styleInfo.text}; border: 1px solid #dee2e6; padding: 15px; margin: 20px 0; border-radius: 6px;`;
   
@@ -38,8 +38,8 @@ function createUpdateEmailHtml(customerName: string, event: any) {
     </div>
     <p>Deine Anmeldung für dieses Event wurde automatisch auf die neuen Daten übertragen.</p>
     <div style="text-align: center; margin: 25px 0;">
-      <a href="https://pfoten-event.vercel.app/?view=manage" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-        Alle Buchungen ansehen
+      <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        Buchung verwalten
       </a>
     </div>
     <p style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
@@ -59,16 +59,19 @@ serve(async (req) => {
         throw new Error("Serverkonfigurationsfehler: E-Mail-Dienst nicht eingerichtet.");
     }
 
-    const { customers, event } = await req.json();
-    console.log(`[send-update-notification] Processing request for ${customers.length} customers for event "${event.title}".`);
+    const { participants, event } = await req.json();
+    console.log(`[send-update-notification] Processing request for ${participants.length} participants for event "${event.title}".`);
 
-    for (const customer of customers) {
-        if (!customer.email || !customer.name) {
-            console.warn("[send-update-notification] Skipping customer with missing data:", customer);
+    for (const participant of participants) {
+        const { customer, bookingId } = participant;
+
+        if (!customer || !customer.email || !customer.name || !bookingId) {
+            console.warn("[send-update-notification] Skipping participant with missing data:", participant);
             continue;
         }
 
-        const htmlContent = createUpdateEmailHtml(customer.name, event);
+        const manageUrl = `https://pfoten-event.vercel.app/?view=manage&bookingId=${bookingId}`;
+        const htmlContent = createUpdateEmailHtml(customer.name, event, manageUrl);
 
         const emailPayload = {
             from: FROM_EMAIL,
