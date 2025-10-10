@@ -548,7 +548,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
                         </div>
                          <div class="form-group">
                             <label for="location">Treffpunkt</label>
-                            <input type="text" id="location" name="location" value=${formData.location} onInput=${handleChange} required />
+                            <input type="text" id="location" name="location" value=${formData.location} onInput=${handleChange} placeholder="Standard: Hundeplatz Ascha" />
                         </div>
                         <div class="form-row">
                             <div class="form-group">
@@ -612,6 +612,84 @@ const ConfirmDeleteModal = ({ onConfirm, onClose, error, loading }) => {
     `;
 };
 
+const BookingOverview = () => {
+    const [eventsWithBookings, setEventsWithBookings] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        const loadBookings = async () => {
+            setLoading(true);
+            setError('');
+            try {
+                // Fetch future events and their related bookings and customers
+                const { data, error: fetchError } = await supabase
+                    .from('events')
+                    .select('*, bookings_events(bookings(*, customers(*)))')
+                    .gte('date', new Date().toISOString())
+                    .order('date', { ascending: true });
+
+                if (fetchError) throw fetchError;
+
+                setEventsWithBookings(data);
+            } catch (err) {
+                setError('Fehler beim Laden der Buchungsübersicht.');
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadBookings();
+    }, []);
+
+    if (loading) {
+        return html`<div class="loading-state">Lade Buchungsübersicht...</div>`;
+    }
+    if (error) {
+        return html`<p class="error-message">${error}</p>`;
+    }
+    if (eventsWithBookings.length === 0) {
+        return html`<p class="empty-state">Keine zukünftigen Events mit Buchungen gefunden.</p>`;
+    }
+
+    return html`
+        <div class="booking-overview-container">
+            ${eventsWithBookings.map(event => {
+                const participants = event.bookings_events
+                    .map(be => be.bookings?.customers)
+                    .filter(Boolean); // Filter out any null/undefined customers
+
+                return html`
+                    <div class="overview-event-group" key=${event.id}>
+                        <h3 class="overview-event-title">
+                            <span>${event.title} (${formatDate(new Date(event.date))})</span>
+                            <span class="overview-event-capacity">${event.booked_capacity} / ${event.total_capacity} Plätze</span>
+                        </h3>
+                        ${participants.length > 0 ? html`
+                            <ul class="participant-list">
+                                ${participants.map(customer => html`
+                                    <li key=${customer.id}>
+                                        <div class="participant-info">
+                                            <strong>${customer.name}</strong> (Hund: ${customer.dog_name})
+                                        </div>
+                                        <div class="participant-contact">
+                                            <span>${customer.email}</span>
+                                            <span>${customer.phone}</span>
+                                        </div>
+                                    </li>
+                                `)}
+                            </ul>
+                        ` : html`
+                            <p class="no-participants-message">Für dieses Event gibt es noch keine Anmeldungen.</p>
+                        `}
+                    </div>
+                `;
+            })}
+        </div>
+    `;
+};
+
 const AdminPanel = () => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -620,6 +698,7 @@ const AdminPanel = () => {
     const [deletingEventId, setDeletingEventId] = useState(null);
     const [deleteError, setDeleteError] = useState('');
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'events'
 
     const loadEvents = async () => {
         setLoading(true);
@@ -631,8 +710,10 @@ const AdminPanel = () => {
     };
 
     useEffect(() => {
-        loadEvents();
-    }, []);
+        if (activeTab === 'events') {
+            loadEvents();
+        }
+    }, [activeTab]);
 
     const handleAdd = () => {
         setEditingEvent(null);
@@ -647,15 +728,7 @@ const AdminPanel = () => {
     const handleCopy = (eventToCopy) => {
         const newDate = new Date(eventToCopy.date);
         newDate.setDate(newDate.getDate() + 7); // Setzt das Datum auf eine Woche später
-
-        // Füllt das Formular mit den Daten des kopierten Events vor,
-        // setzt aber das Datum auf eine Woche später und die ID auf null,
-        // damit es beim Speichern als neues Event behandelt wird.
-        setEditingEvent({
-            ...eventToCopy,
-            date: newDate,
-            id: null, 
-        });
+        setEditingEvent({ ...eventToCopy, date: newDate, id: null });
         setIsModalOpen(true);
     };
 
@@ -670,15 +743,12 @@ const AdminPanel = () => {
 
     const handleConfirmDelete = async () => {
         if (!deletingEventId) return;
-
         setDeleteLoading(true);
         setDeleteError('');
-
         try {
             await api.deleteEvent(deletingEventId);
-            setDeletingEventId(null); // Close modal on success
-            loadEvents(); // Refresh list
-// Fix: Renamed `error` to `err` in the catch block to avoid potential variable shadowing issues that might confuse some tooling and lead to incorrect scope resolution errors.
+            setDeletingEventId(null);
+            loadEvents();
         } catch (err) {
             setDeleteError(err.message);
         } finally {
@@ -687,50 +757,70 @@ const AdminPanel = () => {
     };
 
     const handleSave = async (eventData) => {
-        // Unterscheidet zwischen der Aktualisierung eines bestehenden Events (hat eine ID)
-        // und der Erstellung eines neuen (von Grund auf oder als Kopie, ohne ID).
+        const finalEventData = { ...eventData };
+
+        // Wenn kein Treffpunkt angegeben wurde oder er leer ist, setze den Standardwert.
+        if (!finalEventData.location || finalEventData.location.trim() === '') {
+            finalEventData.location = "Hundeplatz Ascha";
+        }
+
         if (editingEvent && editingEvent.id) {
-            await api.updateEvent(editingEvent.id, eventData);
+            await api.updateEvent(editingEvent.id, finalEventData);
         } else {
-            await api.addEvent(eventData);
+            await api.addEvent(finalEventData);
         }
         setIsModalOpen(false);
         setEditingEvent(null);
         loadEvents();
     };
 
-    if (loading) {
-        return html`<div class="loading-state">Lade Events für Admin Panel...</div>`;
-    }
-
     return html`
         <section class="admin-panel">
-            <div class="admin-header">
-                <h2>Event Verwaltung</h2>
-                <button class="btn btn-primary" onClick=${handleAdd}>+ Neues Event</button>
+            <div class="admin-tabs">
+                <button 
+                    class=${`btn ${activeTab === 'overview' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick=${() => setActiveTab('overview')}
+                >Buchungsübersicht</button>
+                <button 
+                    class=${`btn ${activeTab === 'events' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick=${() => setActiveTab('events')}
+                >Event Verwaltung</button>
             </div>
-            <ul class="admin-event-list">
-                ${events.map(event => html`
-                    <li key=${event.id} class=${`admin-event-item event-category-${event.category.toLowerCase()}`}>
-                       <div class="admin-event-info">
-                            <strong>${event.title}</strong>
-                            <span>${formatDate(new Date(event.date))} - ${formatTime(new Date(event.date))}</span>
-                            <span>Treffpunkt: ${event.location}</span>
-                            <span>Plätze: ${event.booked_capacity} / ${event.total_capacity}</span>
-                       </div>
-                       <div class="admin-event-actions">
-                           <button class="btn btn-secondary" onClick=${() => handleEdit(event)}>Bearbeiten</button>
-                           <button class="btn btn-secondary" onClick=${() => handleCopy(event)}>Kopieren</button>
-                           <button 
-                                class="btn btn-danger" 
-                                onClick=${() => handleStartDelete(event.id)}
-                                disabled=${event.booked_capacity > 0}
-                                title=${event.booked_capacity > 0 ? 'Event hat Buchungen und kann nicht gelöscht werden' : 'Event löschen'}
-                           >Löschen</button>
-                       </div>
-                    </li>
-                `)}
-            </ul>
+
+            ${activeTab === 'overview' && html`<${BookingOverview} />`}
+
+            ${activeTab === 'events' && html`
+                <div class="event-management-view">
+                    <div class="admin-header">
+                        <h2>Event Verwaltung</h2>
+                        <button class="btn btn-primary" onClick=${handleAdd}>+ Neues Event</button>
+                    </div>
+                     ${loading ? html`<div class="loading-state">Lade Events...</div>` : html`
+                        <ul class="admin-event-list">
+                            ${events.map(event => html`
+                                <li key=${event.id} class=${`admin-event-item event-category-${event.category.toLowerCase()}`}>
+                                   <div class="admin-event-info">
+                                        <strong>${event.title}</strong>
+                                        <span>${formatDate(new Date(event.date))} - ${formatTime(new Date(event.date))}</span>
+                                        <span>Treffpunkt: ${event.location}</span>
+                                        <span>Plätze: ${event.booked_capacity} / ${event.total_capacity}</span>
+                                   </div>
+                                   <div class="admin-event-actions">
+                                       <button class="btn btn-secondary" onClick=${() => handleEdit(event)}>Bearbeiten</button>
+                                       <button class="btn btn-secondary" onClick=${() => handleCopy(event)}>Kopieren</button>
+                                       <button 
+                                            class="btn btn-danger" 
+                                            onClick=${() => handleStartDelete(event.id)}
+                                            disabled=${event.booked_capacity > 0}
+                                            title=${event.booked_capacity > 0 ? 'Event hat Buchungen und kann nicht gelöscht werden' : 'Event löschen'}
+                                       >Löschen</button>
+                                   </div>
+                                </li>
+                            `)}
+                        </ul>
+                    `}
+                </div>
+            `}
         </section>
         ${isModalOpen && html`
             <${EventFormModal} 
@@ -1224,6 +1314,7 @@ const AdminLoginModal = ({ onClose }) => {
 const App = () => {
     const [view, setView] = useState('booking');
     const [session, setSession] = useState<Session | null>(null);
+    const [userRole, setUserRole] = useState<string | null>(null);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [initialBookingId, setInitialBookingId] = useState<string | null>(null);
 
@@ -1240,14 +1331,17 @@ const App = () => {
         // Fetch the initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
+            setUserRole(session?.user?.user_metadata?.role ?? null);
         });
 
         // Listen for changes in auth state (login, logout)
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
+            // Get role from metadata. You need to set this in Supabase Auth > Users > User Management
+            setUserRole(session?.user?.user_metadata?.role ?? null);
             if (session) { // If a session is established (login successful)
                 setIsLoginModalOpen(false);
-                setView('admin');
+                setView('admin'); // Automatically switch to admin view on login
             }
         });
 
@@ -1258,6 +1352,7 @@ const App = () => {
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
+        setUserRole(null);
         setView('booking');
     };
 
@@ -1269,7 +1364,7 @@ const App = () => {
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Event buchen</button>
                 <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('manage')}>Buchung verwalten</button>
                 ${session && html`
-                    <button class=${`btn ${view === 'admin' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('admin')}>Admin Panel</button>
+                    <button class=${`btn ${view === 'admin' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('admin')}>Mitarbeiter-Panel</button>
                     <button class="btn btn-secondary" onClick=${handleLogout}>Logout</button>
                 `}
             </nav>
@@ -1277,13 +1372,23 @@ const App = () => {
 
         <main>
             ${view === 'booking' && html`<${CustomerBookingView} />`}
-            ${session && view === 'admin' && html`<${AdminPanel} />`}
             ${view === 'manage' && html`<${BookingManagementPortal} setView=${setView} initialBookingId=${initialBookingId} />`}
+            
+            ${session && view === 'admin' && userRole === 'admin' && html`<${AdminPanel} />`}
+            
+            ${session && view === 'admin' && userRole === 'mitarbeiter' && html`
+                <section class="admin-panel">
+                    <div class="admin-header">
+                        <h2>Buchungsübersicht</h2>
+                    </div>
+                    <${BookingOverview} />
+                </section>
+            `}
         </main>
         
         ${!session && html`
             <footer class="app-footer">
-                <button class="admin-login-btn" onClick=${() => setIsLoginModalOpen(true)}>Admin Login</button>
+                <button class="admin-login-btn" onClick=${() => setIsLoginModalOpen(true)}>Mitarbeiter Login</button>
             </footer>
         `}
 

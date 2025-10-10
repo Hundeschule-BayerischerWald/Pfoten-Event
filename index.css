@@ -503,6 +503,17 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     width: auto;
 }
 
+.admin-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.admin-tabs .btn {
+    width: auto;
+}
+
 .admin-event-list {
     list-style: none;
     padding: 0;
@@ -538,6 +549,71 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     width: auto;
     padding: 0.5rem 1rem;
 }
+
+/* --- Booking Overview --- */
+.booking-overview-container {
+    padding-top: 1rem;
+}
+
+.overview-event-group {
+    margin-bottom: 2rem;
+}
+
+.overview-event-title {
+    background-color: var(--disabled-color);
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin: 0 0 1rem 0;
+    font-size: 1.2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.overview-event-capacity {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--secondary-color);
+}
+
+.participant-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.participant-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.participant-list li:last-child {
+    border-bottom: none;
+}
+
+.participant-info strong {
+    font-weight: 600;
+}
+
+.participant-contact {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+}
+
+.no-participants-message {
+    padding: 1rem;
+    text-align: center;
+    color: var(--secondary-color);
+}
+
 
 /* --- Booking Management Portal --- */
 .booking-lookup-form {
@@ -856,5 +932,12 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     }
     .manage-footer .btn {
         width: 100%;
+    }
+    .participant-list li {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .participant-contact {
+        align-items: flex-start;
     }
 }

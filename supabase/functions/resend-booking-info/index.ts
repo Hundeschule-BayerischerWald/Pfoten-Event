@@ -8,16 +8,20 @@
 // 3. Füge den API-Schlüssel als Secret in deinem Supabase-Projekt hinzu:
 //    Name: RESEND_API_KEY, Wert: re_...
 // 4. VERIFIZIERE DEINE DOMAIN (z.B. hs-bw.com) IN DEINEM RESEND ACCOUNT.
+// 5. [NEU] Lade das Info-PDF in einen öffentlichen Storage-Bucket "assets" hoch.
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { Buffer } from "https://deno.land/std@0.140.0/node/buffer.ts";
 
 // Fix for "Cannot find name 'Deno'" error in non-Deno environments.
 declare const Deno: any;
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-// HINWEIS: Um von deiner eigenen Domain zu senden, musst du sie in Resend verifizieren.
 const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
+
+// WICHTIG: Das PDF muss in einem öffentlichen Supabase Storage Bucket namens "assets" liegen.
+const PDF_ATTACHMENT_URL = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/assets/Wichtige-Infos-zur-Anmeldung.pdf`;
 
 function createRecoveryEmailHtml(customerName: string, bookingIds: string[], manageUrl: string) {
     const bookingsHtml = bookingIds.map(id => `
@@ -100,30 +104,54 @@ serve(async (req) => {
             return genericSuccessResponse;
         }
         
+        // Fetch PDF attachment
+        let pdfAttachment;
+        try {
+            console.log(`[resend-booking-info] Fetching PDF attachment from: ${PDF_ATTACHMENT_URL}`);
+            const pdfResponse = await fetch(PDF_ATTACHMENT_URL);
+            if (pdfResponse.ok) {
+                const pdfArrayBuffer = await pdfResponse.arrayBuffer();
+                const pdfBase64 = Buffer.from(pdfArrayBuffer).toString('base64');
+                pdfAttachment = {
+                    filename: 'Wichtige-Infos-zur-Anmeldung.pdf',
+                    content: pdfBase64,
+                };
+                console.log("[resend-booking-info] Successfully fetched and encoded PDF attachment.");
+            } else {
+                console.warn(`[resend-booking-info] Failed to fetch PDF. Status: ${pdfResponse.status}. Email will be sent without attachment.`);
+            }
+        } catch (pdfError) {
+            console.error("[resend-booking-info] Error fetching or processing PDF attachment:", pdfError.message);
+        }
+
         const manageUrl = 'https://pfoten-event.vercel.app/';
         const htmlContent = createRecoveryEmailHtml(customerData.name, bookingIds, manageUrl);
         
+        const emailPayload: any = {
+            from: FROM_EMAIL,
+            to: email,
+            subject: "Deine angeforderten Buchungsnummern",
+            html: htmlContent,
+            reply_to: 'anmeldungen@pfotencard.hs-bw.com'
+        };
+
+        if (pdfAttachment) {
+            emailPayload.attachments = [pdfAttachment];
+        }
+
         console.log(`[resend-booking-info] Attempting to send recovery email to ${email} via Resend API.`);
-        
         const resendResponse = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${RESEND_API_KEY}`,
             },
-            body: JSON.stringify({
-                from: FROM_EMAIL,
-                to: email,
-                subject: "Deine angeforderten Buchungsnummern",
-                html: htmlContent,
-                reply_to: 'anmeldungen@pfotencard.hs-bw.com'
-            }),
+            body: JSON.stringify(emailPayload),
         });
         
         if (!resendResponse.ok) {
             const responseData = await resendResponse.json();
             console.error("[resend-booking-info] Resend API Error:", responseData);
-            // Don't throw, just log and return generic success.
         } else {
              const responseData = await resendResponse.json();
              console.log("[resend-booking-info] Recovery email sent successfully via Resend:", responseData.id);
