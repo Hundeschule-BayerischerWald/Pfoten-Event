@@ -1,12 +1,16 @@
 // supabase/functions/send-update-notification/index.ts
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { Buffer } from "https://deno.land/std@0.140.0/node/buffer.ts";
 
 // Fix for "Cannot find name 'Deno'" error in non-Deno environments.
 declare const Deno: any;
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
+
+// WICHTIG: Das PDF muss in einem öffentlichen Supabase Storage Bucket namens "assets" liegen.
+const PDF_ATTACHMENT_URL = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/assets/Wichtige-Infos-zur-Anmeldung.pdf`;
 
 const CATEGORY_COLORS = {
     "Orchid": { bg: "Orchid", text: "#1a1a1a" },
@@ -62,6 +66,26 @@ serve(async (req) => {
     const { participants, event } = await req.json();
     console.log(`[send-update-notification] Processing request for ${participants.length} participants for event "${event.title}".`);
 
+    // Fetch PDF attachment once before the loop
+    let pdfAttachment;
+    try {
+        console.log(`[send-update-notification] Fetching PDF attachment from: ${PDF_ATTACHMENT_URL}`);
+        const pdfResponse = await fetch(PDF_ATTACHMENT_URL);
+        if (pdfResponse.ok) {
+            const pdfArrayBuffer = await pdfResponse.arrayBuffer();
+            const pdfBase64 = Buffer.from(pdfArrayBuffer).toString('base64');
+            pdfAttachment = {
+                filename: 'Wichtige-Infos-zur-Anmeldung.pdf',
+                content: pdfBase64,
+            };
+            console.log("[send-update-notification] Successfully fetched and encoded PDF attachment.");
+        } else {
+            console.warn(`[send-update-notification] Failed to fetch PDF. Status: ${pdfResponse.status}. Email will be sent without attachment.`);
+        }
+    } catch (pdfError) {
+        console.error("[send-update-notification] Error fetching or processing PDF attachment:", pdfError.message);
+    }
+
     for (const participant of participants) {
         const { customer, bookingId } = participant;
 
@@ -73,13 +97,17 @@ serve(async (req) => {
         const manageUrl = `https://pfoten-event.vercel.app/?view=manage&bookingId=${bookingId}`;
         const htmlContent = createUpdateEmailHtml(customer.name, event, manageUrl);
 
-        const emailPayload = {
+        const emailPayload: any = {
             from: FROM_EMAIL,
             to: customer.email,
             subject: 'Wichtige Änderung bei deiner Event-Buchung',
             html: htmlContent,
             reply_to: 'anmeldungen@pfotencard.hs-bw.com'
         };
+        
+        if (pdfAttachment) {
+            emailPayload.attachments = [pdfAttachment];
+        }
         
         console.log(`[send-update-notification] Attempting to send notification to ${customer.email} via Resend API.`);
         const resendResponse = await fetch('https://api.resend.com/emails', {
