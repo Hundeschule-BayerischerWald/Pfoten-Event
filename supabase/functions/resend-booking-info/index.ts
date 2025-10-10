@@ -56,7 +56,7 @@ serve(async (req) => {
     });
   
     try {
-        const { email, baseUrl } = await req.json();
+        const { email } = await req.json();
         if (!email) {
             console.warn("[resend-booking-info] Request received without email.");
             return genericSuccessResponse;
@@ -100,8 +100,7 @@ serve(async (req) => {
             return genericSuccessResponse;
         }
         
-        const finalBaseUrl = baseUrl || 'http://pfotencard.hs-bw.com';
-        const manageUrl = `${finalBaseUrl}/?view=manage`;
+        const manageUrl = 'https://pfoten-event.vercel.app/';
         const htmlContent = createRecoveryEmailHtml(customerData.name, bookingIds, manageUrl);
         
         console.log(`[resend-booking-info] Attempting to send recovery email to ${email} via Resend API.`);

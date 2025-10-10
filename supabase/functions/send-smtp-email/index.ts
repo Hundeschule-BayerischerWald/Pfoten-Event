@@ -78,14 +78,13 @@ serve(async (req) => {
         throw new Error("RESEND_API_KEY ist nicht in den Supabase Secrets gesetzt.");
     }
 
-    const { type, customerName, customerEmail, bookingId, events, baseUrl } = await req.json();
+    const { type, customerName, customerEmail, bookingId, events } = await req.json();
     console.log(`[send-smtp-email] Processing request for ${customerEmail}, type: ${type}`);
 
     const subject = type === 'new-booking' ? 'Deine Buchungsbestätigung für die Hundeschule' : 'Deine Buchung wurde aktualisiert';
     const title = type === 'new-booking' ? 'Buchung erfolgreich!' : 'Buchung aktualisiert!';
     
-    const finalBaseUrl = baseUrl || 'http://pfotencard.hs-bw.com';
-    const manageUrl = `${finalBaseUrl}/?view=manage&bookingId=${bookingId}`;
+    const manageUrl = `https://pfoten-event.vercel.app/?view=manage&bookingId=${bookingId}`;
     const htmlContent = createEmailHtml(title, customerName, bookingId, events, manageUrl);
 
     console.log(`[send-smtp-email] Attempting to send email to ${customerEmail} via Resend API.`);

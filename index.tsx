@@ -299,8 +299,7 @@ const ForgotPasswordModal = ({ onClose }) => {
         try {
             const { error: invokeError } = await supabase.functions.invoke('resend-booking-info', {
                 body: { 
-                    email: email.trim().toLowerCase(),
-                    baseUrl: window.location.origin
+                    email: email.trim().toLowerCase()
                 }
             });
 
@@ -751,8 +750,8 @@ const AdminPanel = () => {
     `;
 };
 
-const BookingManagementPortal = ({ setView }) => {
-    const [bookingIdInput, setBookingIdInput] = useState('');
+const BookingManagementPortal = ({ setView, initialBookingId }) => {
+    const [bookingIdInput, setBookingIdInput] = useState(initialBookingId || '');
     const [booking, setBooking] = useState<Booking | null>(null);
     const [allEvents, setAllEvents] = useState<Event[]>([]);
     const [managedEventIds, setManagedEventIds] = useState<string[]>([]);
@@ -784,16 +783,11 @@ const BookingManagementPortal = ({ setView }) => {
         }
     };
 
-    // Auto-lookup booking if ID is provided in URL
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const bookingIdFromUrl = urlParams.get('bookingId');
-        if (bookingIdFromUrl) {
-            setBookingIdInput(bookingIdFromUrl);
-            performLookup(bookingIdFromUrl);
+        if (initialBookingId) {
+            performLookup(initialBookingId);
         }
-    }, []);
-
+    }, [initialBookingId]);
 
     useEffect(() => {
         if (booking) {
@@ -846,8 +840,7 @@ const BookingManagementPortal = ({ setView }) => {
                         customerName: updatedBooking.customer.name,
                         customerEmail: updatedBooking.customer.email,
                         bookingId: updatedBooking.bookingId,
-                        events: updatedEventsDetails,
-                        baseUrl: window.location.origin
+                        events: updatedEventsDetails
                     }
                 });
             } catch (emailError) {
@@ -1055,8 +1048,7 @@ const CustomerBookingView = () => {
                         customerName: customer.name,
                         customerEmail: customer.email,
                         bookingId: booking.bookingId,
-                        events: bookedEventsDetails,
-                        baseUrl: window.location.origin
+                        events: bookedEventsDetails
                     }
                 });
             } catch (emailError) {
@@ -1233,13 +1225,16 @@ const App = () => {
     const [view, setView] = useState('booking');
     const [session, setSession] = useState<Session | null>(null);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [initialBookingId, setInitialBookingId] = useState<string | null>(null);
 
     useEffect(() => {
-        // Handle view from URL parameter on initial load
-        const urlParams = new URLSearchParams(window.location.search);
-        const viewFromUrl = urlParams.get('view');
-        if (viewFromUrl === 'manage') {
+        // Handle URL parameters for direct linking
+        const params = new URLSearchParams(window.location.search);
+        const viewParam = params.get('view');
+        const bookingIdParam = params.get('bookingId');
+        if (viewParam === 'manage' && bookingIdParam) {
             setView('manage');
+            setInitialBookingId(bookingIdParam);
         }
 
         // Fetch the initial session
@@ -1283,7 +1278,7 @@ const App = () => {
         <main>
             ${view === 'booking' && html`<${CustomerBookingView} />`}
             ${session && view === 'admin' && html`<${AdminPanel} />`}
-            ${view === 'manage' && html`<${BookingManagementPortal} setView=${setView} />`}
+            ${view === 'manage' && html`<${BookingManagementPortal} setView=${setView} initialBookingId=${initialBookingId} />`}
         </main>
         
         ${!session && html`
