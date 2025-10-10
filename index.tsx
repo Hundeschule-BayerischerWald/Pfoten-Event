@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
 */
 import { render, h } from 'preact';
-import { useState, useEffect, useMemo } from 'preact/hooks';
+import { useState, useEffect, useMemo, useRef } from 'preact/hooks';
 import htm from 'htm';
 import { createClient, Session } from '@supabase/supabase-js';
 
@@ -28,7 +28,7 @@ const EVENT_CATEGORIES = {
     "Gold": { titles: ["Trainerstunde"], locations: ["Nach Absprache"] },
     "White": { titles: ["Verbindlichkeit auf Distanz"], locations: ["Weites Feld"] },
     "DarkKhaki": { titles: ["Gelassenheitstraining"], locations: ["Stadtwald"] },
-    "Tomato": { titles: ["Spezialkurs: Apportieren"], locations: ["Hundeschule Innenbereich"] }
+    "Tomato": { titles: ["Spezial-Event: Apportieren"], locations: ["Hundeschule Innenbereich"] }
 };
 
 // --- TYPEN & INTERFACES ---
@@ -123,17 +123,7 @@ const api = {
              throw new Error("Events konnten nicht zur Buchung hinzugefügt werden.");
         }
         
-        // 6. Aktualisiere die `booked_capacity` der Events
-        // Hinweis: Dies geschieht nacheinander und ist nicht atomar. Für eine robustere Lösung
-        // wäre eine Postgres Function (RPC Call in Supabase) ideal.
-        for (const eventId of eventIds) {
-             const event = events.find(e => e.id === eventId);
-             if (event) {
-                await supabase.from('events')
-                    .update({ booked_capacity: event.booked_capacity + 1 })
-                    .eq('id', eventId);
-             }
-        }
+        // 6. Aktualisierung der `booked_capacity` wird nun vom DB-Trigger übernommen.
 
         return {
             bookingId: newBookingId,
@@ -152,21 +142,30 @@ const api = {
             .eq('id', bookingId)
             .single();
 
-        if (error || !data) {
-            if(error && error.code !== 'PGRST116') console.error('Error fetching booking:', error); // PGRST116: "exact one row" error
+        // Wenn keine Buchung gefunden wird, ein Fehler auftritt oder die Buchung keinen Kunden hat, null zurückgeben.
+        if (error || !data || !data.customer) {
+            if (error && error.code !== 'PGRST116') { // PGRST116 ist der Fehler "genau eine Zeile", was ok ist, wenn nichts gefunden wird.
+                console.error('Error fetching booking:', error);
+            }
+            if (data && !data.customer) {
+                console.error(`Buchung mit ID ${bookingId} gefunden, aber sie hat keinen zugehörigen Kunden.`);
+            }
             return null;
         }
         
-        // Transformiere die Daten in das benötigte Frontend-Format
+        // Bei einer "to-one"-Beziehung gibt Supabase ein Objekt zurück, kein Array.
+        // Der vorherige Code ging fälschlicherweise von einem Array aus (data.customer[0]), was den Fehler verursachte.
+        // FIX: The type from Supabase is inferred incorrectly as an array. Casting to `any` to align with runtime behavior where `data.customer` is an object.
+        const customerData = data.customer as any;
+
         const booking: Booking = {
             bookingId: data.id,
             customer: {
-                // FIX: Supabase returns a to-one relationship as an array when the foreign key column is not unique. Accessing the first element.
-                id: data.customer[0].id,
-                name: data.customer[0].name,
-                phone: data.customer[0].phone,
-                dog_name: data.customer[0].dog_name,
-                email: data.customer[0].email,
+                id: customerData.id,
+                name: customerData.name,
+                phone: customerData.phone,
+                dog_name: customerData.dog_name,
+                email: customerData.email,
             },
             bookedEventIds: data.events.map((be: any) => be.event_id),
         };
@@ -189,7 +188,7 @@ const api = {
             if (event) {
                 const hoursUntilEvent = (new Date(event.date).getTime() - now.getTime()) / (1000 * 60 * 60);
                 if (hoursUntilEvent < CANCELLATION_WINDOW_HOURS) {
-                    throw new Error(`Stornierung für "${event.title}" nicht möglich, da der Kurs in weniger als 24 Stunden beginnt.`);
+                    throw new Error(`Stornierung für "${event.title}" nicht möglich, da das Event in weniger als 24 Stunden beginnt.`);
                 }
             }
         }
@@ -198,33 +197,19 @@ const api = {
         for (const addedId of addedIds) {
             const event = allEvents.find(e => e.id === addedId);
             if (!event || event.booked_capacity >= event.total_capacity) {
-                throw new Error(`Kurs "${event?.title}" ist leider ausgebucht.`);
+                throw new Error(`Event "${event?.title}" ist leider ausgebucht.`);
             }
         }
 
         // Änderungen in der Datenbank durchführen
         if (removedIds.length > 0) {
             await supabase.from('bookings_events').delete().eq('booking_id', bookingId).in('event_id', removedIds);
-            for (const removedId of removedIds) {
-                const event = allEvents.find(e => e.id === removedId);
-                if (event) {
-                    await supabase.from('events')
-                        .update({ booked_capacity: Math.max(0, event.booked_capacity - 1) })
-                        .eq('id', removedId);
-                }
-            }
+            // Die Aktualisierung der `booked_capacity` wird nun vom DB-Trigger übernommen.
         }
 
         if (addedIds.length > 0) {
             await supabase.from('bookings_events').insert(addedIds.map(id => ({ booking_id: bookingId, event_id: id })));
-             for (const addedId of addedIds) {
-                const event = allEvents.find(e => e.id === addedId);
-                if (event) {
-                    await supabase.from('events')
-                        .update({ booked_capacity: event.booked_capacity + 1 })
-                        .eq('id', addedId);
-                }
-            }
+            // Die Aktualisierung der `booked_capacity` wird nun vom DB-Trigger übernommen.
         }
         
         return (await api.getBookingById(bookingId))!;
@@ -252,8 +237,24 @@ const api = {
         return {...data, date: new Date(data.date)};
     },
     deleteEvent: async (eventId: string): Promise<void> => {
-        const { error } = await supabase.from('events').delete().eq('id', eventId);
-        if (error) throw new Error("Event konnte nicht gelöscht werden.");
+        // Zuerst prüfen, ob Buchungen für dieses Event existieren
+        const { count, error: countError } = await supabase
+            .from('bookings_events')
+            .select('*', { count: 'exact', head: true })
+            .eq('event_id', eventId);
+
+        if (countError) {
+            throw new Error("Fehler beim Prüfen der Event-Buchungen.");
+        }
+        if (count > 0) {
+            throw new Error(`Dieses Event kann nicht gelöscht werden, da bereits ${count} Buchung(en) dafür existieren.`);
+        }
+        
+        // Wenn keine Buchungen vorhanden sind, das Event löschen
+        const { error: deleteError } = await supabase.from('events').delete().eq('id', eventId);
+        if (deleteError) {
+            throw new Error("Event konnte nicht gelöscht werden.");
+        }
     },
 };
 
@@ -268,8 +269,17 @@ const getWeekNumber = (d: Date): number => {
     const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
     return weekNo;
 }
-const toInputDateString = (date: Date) => date.toISOString().split('T')[0];
-const toInputTimeString = (date: Date) => date.toTimeString().split(' ')[0].substring(0, 5);
+const toInputDateString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+const toInputTimeString = (date: Date): string => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+};
 
 
 // --- KOMPONENTEN ---
@@ -310,7 +320,7 @@ const ForgotPasswordModal = ({ onClose }) => {
                 <form onSubmit=${handleSubmit}>
                     <div class="modal-header">
                         <h2>Buchungsnummer anfordern</h2>
-                        <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">&times;</button>
+                        <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
                     </div>
                     <div class="modal-body">
                         ${!message ? html`
@@ -325,9 +335,11 @@ const ForgotPasswordModal = ({ onClose }) => {
                         ${message && html`<p class="success-message">${message}</p>`}
                     </div>
                     <div class="modal-footer">
-                         <button type="button" class="btn btn-secondary" onClick=${onClose} disabled=${loading}>Abbrechen</button>
-                         ${!message && html`
+                         ${!message ? html`
+                            <button type="button" class="btn btn-secondary" onClick=${onClose} disabled=${loading}>Abbrechen</button>
                             <button type="submit" class="btn btn-primary" disabled=${loading}>${loading ? 'Sendet...' : 'Senden'}</button>
+                         ` : html `
+                            <button type="button" class="btn btn-primary" onClick=${onClose}>Zurück zum Portal</button>
                          `}
                     </div>
                 </form>
@@ -368,7 +380,7 @@ const BookingPanel = ({ selectedEvents, customer, onCustomerChange, onSubmit, er
         return html`
             <div class="booking-summary">
                 <h3>Deine Auswahl</h3>
-                <p class="empty-state">Wähle links einen oder mehrere Kurse aus, um mit der Anmeldung zu beginnen.</p>
+                <p class="empty-state">Wähle links ein oder mehrere Events aus, um mit der Anmeldung zu beginnen.</p>
             </div>
         `;
     }
@@ -453,7 +465,7 @@ const SuccessModal = ({ bookingDetails, onClose }) => {
             <div class="modal-content" onClick=${e => e.stopPropagation()}>
                 <div class="modal-header">
                     <h2>Buchung erfolgreich!</h2>
-                    <button class="modal-close-btn" onClick=${onClose} aria-label="Schließen">&times;</button>
+                    <button class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
                 </div>
                 <div class="modal-body">
                     <p>Vielen Dank, ${bookingDetails.customerName}!</p>
@@ -474,7 +486,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
         location: '',
         date: '',
         time: '',
-        totalCapacity: 5,
+        totalCapacity: 6,
         category: Object.keys(EVENT_CATEGORIES)[0],
     });
 
@@ -489,12 +501,14 @@ const EventFormModal = ({ event, onSave, onClose }) => {
                 category: event.category,
             });
         } else {
+             const defaultDate = new Date();
+             defaultDate.setHours(10, 0, 0, 0);
              setFormData({
                 title: '',
                 location: '',
-                date: toInputDateString(new Date()),
-                time: '10:00',
-                totalCapacity: 5,
+                date: toInputDateString(defaultDate),
+                time: toInputTimeString(defaultDate),
+                totalCapacity: 6,
                 category: Object.keys(EVENT_CATEGORIES)[0],
             });
         }
@@ -522,8 +536,8 @@ const EventFormModal = ({ event, onSave, onClose }) => {
             <div class="modal-content" onClick=${e => e.stopPropagation()}>
                 <form onSubmit=${handleSubmit}>
                     <div class="modal-header">
-                        <h2>${event ? 'Event bearbeiten' : 'Neues Event erstellen'}</h2>
-                        <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">&times;</button>
+                        <h2>${event && event.id ? 'Event bearbeiten' : 'Neues Event erstellen'}</h2>
+                        <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
@@ -567,16 +581,47 @@ const EventFormModal = ({ event, onSave, onClose }) => {
     `;
 };
 
+const ConfirmDeleteModal = ({ onConfirm, onClose, error, loading }) => {
+    return html`
+        <div class="modal-overlay" onClick=${onClose}>
+            <div class="modal-content" onClick=${e => e.stopPropagation()}>
+                <div class="modal-header">
+                    <h2>Löschen bestätigen</h2>
+                    <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
+                </div>
+                <div class="modal-body">
+                    <p>Bist du sicher, dass du dieses Event endgültig löschen möchtest?</p>
+                    <p><strong>Diese Aktion kann nicht rückgängig gemacht werden.</strong></p>
+                    ${error && html`<p class="error-message">${error}</p>`}
+                </div>
+                <div class="modal-footer">
+                     <button type="button" class="btn btn-secondary" onClick=${onClose} disabled=${loading}>Abbrechen</button>
+                     <button 
+                        type="button" 
+                        class="btn btn-danger" 
+                        onClick=${onConfirm}
+                        disabled=${loading}
+                     >
+                        ${loading ? 'Lösche...' : 'Ja, endgültig löschen'}
+                     </button>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
 const AdminPanel = () => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState(null);
+    const [deletingEventId, setDeletingEventId] = useState(null);
+    const [deleteError, setDeleteError] = useState('');
+    const [deleteLoading, setDeleteLoading] = useState(false);
 
     const loadEvents = async () => {
         setLoading(true);
         const eventsFromApi = await api.getEvents();
-        // Die Sortierung kommt jetzt von der API, aber wir filtern weiterhin vergangene Events clientseitig
         const now = new Date();
         const futureEvents = eventsFromApi.filter(e => new Date(e.date) >= now);
         setEvents(futureEvents);
@@ -597,15 +642,52 @@ const AdminPanel = () => {
         setIsModalOpen(true);
     };
 
-    const handleDelete = async (eventId) => {
-        if (confirm('Bist du sicher, dass du dieses Event löschen möchtest?')) {
-            await api.deleteEvent(eventId);
-            loadEvents();
+    const handleCopy = (eventToCopy) => {
+        const newDate = new Date(eventToCopy.date);
+        newDate.setDate(newDate.getDate() + 7); // Setzt das Datum auf eine Woche später
+
+        // Füllt das Formular mit den Daten des kopierten Events vor,
+        // setzt aber das Datum auf eine Woche später und die ID auf null,
+        // damit es beim Speichern als neues Event behandelt wird.
+        setEditingEvent({
+            ...eventToCopy,
+            date: newDate,
+            id: null, 
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleStartDelete = (eventId) => {
+        setDeleteError('');
+        setDeletingEventId(eventId);
+    };
+
+    const handleCancelDelete = () => {
+        setDeletingEventId(null);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deletingEventId) return;
+
+        setDeleteLoading(true);
+        setDeleteError('');
+
+        try {
+            await api.deleteEvent(deletingEventId);
+            setDeletingEventId(null); // Close modal on success
+            loadEvents(); // Refresh list
+// Fix: Renamed `error` to `err` in the catch block to avoid potential variable shadowing issues that might confuse some tooling and lead to incorrect scope resolution errors.
+        } catch (err) {
+            setDeleteError(err.message);
+        } finally {
+            setDeleteLoading(false);
         }
     };
-    
+
     const handleSave = async (eventData) => {
-        if (editingEvent) {
+        // Unterscheidet zwischen der Aktualisierung eines bestehenden Events (hat eine ID)
+        // und der Erstellung eines neuen (von Grund auf oder als Kopie, ohne ID).
+        if (editingEvent && editingEvent.id) {
             await api.updateEvent(editingEvent.id, eventData);
         } else {
             await api.addEvent(eventData);
@@ -636,7 +718,13 @@ const AdminPanel = () => {
                        </div>
                        <div class="admin-event-actions">
                            <button class="btn btn-secondary" onClick=${() => handleEdit(event)}>Bearbeiten</button>
-                           <button class="btn btn-danger" onClick=${() => handleDelete(event.id)}>Löschen</button>
+                           <button class="btn btn-secondary" onClick=${() => handleCopy(event)}>Kopieren</button>
+                           <button 
+                                class="btn btn-danger" 
+                                onClick=${() => handleStartDelete(event.id)}
+                                disabled=${event.booked_capacity > 0}
+                                title=${event.booked_capacity > 0 ? 'Event hat Buchungen und kann nicht gelöscht werden' : 'Event löschen'}
+                           >Löschen</button>
                        </div>
                     </li>
                 `)}
@@ -649,10 +737,18 @@ const AdminPanel = () => {
                 onClose=${() => setIsModalOpen(false)}
             />
         `}
+        ${deletingEventId && html`
+            <${ConfirmDeleteModal} 
+                onConfirm=${handleConfirmDelete}
+                onClose=${handleCancelDelete}
+                error=${deleteError}
+                loading=${deleteLoading}
+            />
+        `}
     `;
 };
 
-const BookingManagementPortal = () => {
+const BookingManagementPortal = ({ setView }) => {
     const [bookingIdInput, setBookingIdInput] = useState('');
     const [booking, setBooking] = useState<Booking | null>(null);
     const [allEvents, setAllEvents] = useState<Event[]>([]);
@@ -662,6 +758,7 @@ const BookingManagementPortal = () => {
     const [successMessage, setSuccessMessage] = useState('');
     const [hasChanges, setHasChanges] = useState(false);
     const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+    const [updateComplete, setUpdateComplete] = useState(false);
 
     useEffect(() => {
         if (booking) {
@@ -711,7 +808,7 @@ const BookingManagementPortal = () => {
             const updatedBooking = await api.updateBooking(booking.bookingId, managedEventIds);
             setBooking(updatedBooking); // update local state with the saved data
             setManagedEventIds(updatedBooking.bookedEventIds);
-            setSuccessMessage('Deine Buchung wurde erfolgreich aktualisiert!');
+            setUpdateComplete(true);
 
             // E-Mail-Versand für Update anstoßen
             try {
@@ -720,7 +817,8 @@ const BookingManagementPortal = () => {
                     .map(e => ({
                         title: e.title,
                         date: new Date(e.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
-                        location: e.location
+                        location: e.location,
+                        category: e.category
                     }));
                 
                 await supabase.functions.invoke('send-smtp-email', {
@@ -748,6 +846,14 @@ const BookingManagementPortal = () => {
             prev.includes(eventId) ? prev.filter(id => id !== eventId) : [...prev, eventId]
         );
     };
+    
+    const handleReset = () => {
+        setBooking(null);
+        setBookingIdInput('');
+        setUpdateComplete(false);
+        setError('');
+        setSuccessMessage('');
+    }
 
     const { bookedEvents, availableEvents } = useMemo(() => {
         if (!booking) return { bookedEvents: [], availableEvents: [] };
@@ -766,6 +872,19 @@ const BookingManagementPortal = () => {
             .sort((a, b) => a.date.getTime() - b.date.getTime());
         return { bookedEvents: booked, availableEvents: available };
     }, [allEvents, managedEventIds, booking]);
+
+    if (updateComplete) {
+        return html`
+            <section class="manage-portal-success">
+                <h2>Änderungen gespeichert!</h2>
+                <p class="success-message">Deine Buchung wurde erfolgreich aktualisiert. Wir haben dir eine Bestätigungs-E-Mail gesendet.</p>
+                <div class="manage-footer">
+                    <button class="btn btn-secondary" onClick=${() => setView('booking')}>Zurück zur Eventliste</button>
+                    <button class="btn btn-primary" onClick=${handleReset}>Andere Buchung verwalten</button>
+                </div>
+            </section>
+        `;
+    }
 
     if (!booking) {
         return html`
@@ -800,7 +919,7 @@ const BookingManagementPortal = () => {
 
             <div class="manage-container">
                 <div class="manage-section">
-                    <h3>Deine gebuchten Kurse</h3>
+                    <h3>Deine gebuchten Events</h3>
                     ${bookedEvents.length > 0 ? html`
                         <ul class="manage-event-list">
                             ${bookedEvents.map(event => {
@@ -819,10 +938,10 @@ const BookingManagementPortal = () => {
                                 `;
                             })}
                         </ul>
-                    ` : html`<p class="empty-state-small">Du hast aktuell keine Kurse gebucht.</p>`}
+                    ` : html`<p class="empty-state-small">Du hast aktuell keine Events gebucht.</p>`}
                 </div>
                 <div class="manage-section">
-                    <h3>Verfügbare Kurse</h3>
+                    <h3>Verfügbare Events</h3>
                      ${availableEvents.length > 0 ? html`
                         <ul class="manage-event-list">
                             ${availableEvents.map(event => {
@@ -839,11 +958,11 @@ const BookingManagementPortal = () => {
                                 `;
                             })}
                         </ul>
-                    ` : html`<p class="empty-state-small">Aktuell sind keine weiteren Kurse verfügbar.</p>`}
+                    ` : html`<p class="empty-state-small">Aktuell sind keine weiteren Events verfügbar.</p>`}
                 </div>
             </div>
             <div class="manage-footer">
-                <button class="btn btn-secondary" onClick=${() => setBooking(null)}>Andere Buchung suchen</button>
+                <button class="btn btn-secondary" onClick=${handleReset}>Andere Buchung suchen</button>
                 <button class="btn btn-primary" onClick=${handleSaveChanges} disabled=${!hasChanges || isLoading}>
                     ${isLoading ? 'Speichert...' : 'Änderungen speichern'}
                 </button>
@@ -906,7 +1025,8 @@ const CustomerBookingView = () => {
                     .map(e => ({
                         title: e.title,
                         date: new Date(e.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
-                        location: e.location
+                        location: e.location,
+                        category: e.category
                     }));
 
                 await supabase.functions.invoke('send-smtp-email', {
@@ -922,14 +1042,14 @@ const CustomerBookingView = () => {
                 console.warn("E-Mail-Funktion konnte nicht aufgerufen werden. Stelle sicher, dass die Supabase Edge Function 'send-smtp-email' deployed ist.", emailError);
             }
 
+            // Immediately reload events to show updated capacity from the database trigger
+            loadInitialData();
+
             // Reset state after successful booking
             setSelectedEventIds([]);
             setCustomer({ name: '', phone: '', dog_name: '', email: '' });
             setAgreedAGB(false);
             setAgreedPrivacy(false);
-            
-            // Reload events to show updated capacity
-            loadInitialData();
 
         } catch (err) {
             setBookingError(err.message);
@@ -972,7 +1092,7 @@ const CustomerBookingView = () => {
     }, [allEvents, selectedEventIds]);
 
     if (loading) {
-        return html`<div class="loading-state">Lade Kurstermine...</div>`;
+        return html`<div class="loading-state">Lade Eventtermine...</div>`;
     }
     
     const now = new Date();
@@ -980,30 +1100,32 @@ const CustomerBookingView = () => {
     return html`
         <main class="main-container">
             <section class="events-section">
-                <div class="month-navigator">
-                    <h2>Eventliste Hundeschule</h2>
-                </div>
-                <div class="event-list-container">
-                    ${eventsByWeek.length > 0 ? eventsByWeek.map(weekGroup => html`
-                        <div class="week-group" key=${weekGroup.weekHeader}>
-                            <h3 class="week-header">${weekGroup.weekHeader}</h3>
-                            <ul class="event-list">
-                                ${weekGroup.events.map(event => {
-                                    const isPast = event.date < now;
-                                    return html`
-                                    <${EventItem} 
-                                        key=${event.id}
-                                        event=${event}
-                                        onSelect=${handleSelectEvent}
-                                        isSelected=${selectedEventIds.includes(event.id)}
-                                        isLocked=${isPast}
-                                    />
-                                `})}
-                            </ul>
-                        </div>
-                    `) : html`
-                        <p class="empty-state">Aktuell gibt es keine verfügbaren Events.</p>
-                    `}
+                <div class="events-container-box">
+                    <div class="month-navigator">
+                        <h2>Eventliste Hundeschule</h2>
+                    </div>
+                    <div class="event-list-container">
+                        ${eventsByWeek.length > 0 ? eventsByWeek.map(weekGroup => html`
+                            <div class="week-group" key=${weekGroup.weekHeader}>
+                                <h3 class="week-header">${weekGroup.weekHeader}</h3>
+                                <ul class="event-list">
+                                    ${weekGroup.events.map(event => {
+                                        const isPast = event.date < now;
+                                        return html`
+                                        <${EventItem} 
+                                            key=${event.id}
+                                            event=${event}
+                                            onSelect=${handleSelectEvent}
+                                            isSelected=${selectedEventIds.includes(event.id)}
+                                            isLocked=${isPast}
+                                        />
+                                    `})}
+                                </ul>
+                            </div>
+                        `) : html`
+                            <p class="empty-state">Aktuell gibt es keine verfügbaren Events.</p>
+                        `}
+                    </div>
                 </div>
             </section>
             
@@ -1062,7 +1184,7 @@ const AdminLoginModal = ({ onClose }) => {
                 <form onSubmit=${handleSubmit}>
                     <div class="modal-header">
                         <h2>Admin Login</h2>
-                        <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">&times;</button>
+                        <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
@@ -1118,10 +1240,10 @@ const App = () => {
 
     return html`
         <header class="booking-tool-header">
-            <h1>Kursanmeldung Hundeschule</h1>
+            <h1>Eventanmeldung Hundeschule</h1>
             <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
             <nav class="main-nav">
-                <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Kurs buchen</button>
+                <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Event buchen</button>
                 <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('manage')}>Buchung verwalten</button>
                 ${session && html`
                     <button class=${`btn ${view === 'admin' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('admin')}>Admin Panel</button>
@@ -1133,7 +1255,7 @@ const App = () => {
         <main>
             ${view === 'booking' && html`<${CustomerBookingView} />`}
             ${session && view === 'admin' && html`<${AdminPanel} />`}
-            ${view === 'manage' && html`<${BookingManagementPortal} />`}
+            ${view === 'manage' && html`<${BookingManagementPortal} setView=${setView} />`}
         </main>
         
         ${!session && html`

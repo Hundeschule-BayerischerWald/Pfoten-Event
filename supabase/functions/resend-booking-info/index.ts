@@ -7,6 +7,7 @@
 // 2. Erstelle einen API-Schlüssel.
 // 3. Füge den API-Schlüssel als Secret in deinem Supabase-Projekt hinzu:
 //    Name: RESEND_API_KEY, Wert: re_...
+// 4. VERIFIZIERE DEINE DOMAIN (z.B. hs-bw.com) IN DEINEM RESEND ACCOUNT.
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -16,8 +17,7 @@ declare const Deno: any;
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 // HINWEIS: Um von deiner eigenen Domain zu senden, musst du sie in Resend verifizieren.
-const FROM_EMAIL = 'Hundeschule <onboarding@resend.dev>';
-const YOUR_DOMAIN_EMAIL = 'anmeldungen@hs-bw.com'; // Dies ist die E-Mail, an die geantwortet werden soll
+const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
 
 function createRecoveryEmailHtml(customerName: string, bookingIds: string[]) {
     const bookingsHtml = bookingIds.map(id => `
@@ -35,8 +35,13 @@ function createRecoveryEmailHtml(customerName: string, bookingIds: string[]) {
         <p>du hast deine Buchungsnummern bei uns angefordert. Hier sind alle Nummern, die unter deiner E-Mail-Adresse registriert sind:</p>
         <ul>${bookingsHtml}</ul>
         <p style="margin-top: 20px;">Du kannst diese Nummern nun verwenden, um deine Buchungen zu verwalten.</p>
-        <p style="margin-top: 20px; font-size: 12px; color: #888;">
-          Bei Fragen antworte bitte direkt auf diese E-Mail.
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="http://pfotencard.hs-bw.com/" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+            Zur Buchungsverwaltung
+          </a>
+        </div>
+        <p style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
+          Dies ist eine automatisch generierte E-Mail. Bitte antworte nicht darauf.
         </p></div></body></html>
     `;
 }
@@ -110,7 +115,7 @@ serve(async (req) => {
                 to: email,
                 subject: "Deine angeforderten Buchungsnummern",
                 html: htmlContent,
-                reply_to: YOUR_DOMAIN_EMAIL
+                reply_to: 'anmeldungen@pfotencard.hs-bw.com'
             }),
         });
         

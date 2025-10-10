@@ -31,20 +31,6 @@ body {
     overflow-x: hidden;
 }
 
-body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 40%;
-    height: 100%;
-    background-image: url('https://images.unsplash.com/photo-1543466835-00a7907e9de1?q=80&w=1974&auto=format&fit=crop');
-    background-size: cover;
-    background-position: center;
-    opacity: 0.5;
-    z-index: -1;
-}
-
 #app {
     padding: 1rem;
     max-width: 1300px;
@@ -96,16 +82,19 @@ body::before {
     background: transparent;
 }
 
+.events-container-box {
+    background: var(--surface-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 1.5rem;
+}
+
 .month-navigator {
     display: flex;
-    justify-content: center;
     align-items: center;
-    padding: 1rem 1.5rem;
-    background-color: rgba(253, 253, 255, 0.8);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
     margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .month-navigator h2 {
@@ -115,7 +104,7 @@ body::before {
 }
 
 .event-list-container {
-    max-height: 70vh;
+    max-height: 80vh;
     overflow-y: auto;
     padding-right: 10px; /* for scrollbar */
 }
@@ -313,6 +302,22 @@ body::before {
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
 }
 
+/* Ensure native date/time picker icon is visible and clickable */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.7;
+    filter: invert(0.5); /* Makes the icon visible on light backgrounds */
+    transition: opacity var(--transition-speed);
+    margin-right: 0.5rem;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -479,6 +484,8 @@ body::before {
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
     padding: 1.5rem;
+    max-height: 80vh;
+    overflow-y: auto;
 }
 
 .admin-header {
@@ -566,15 +573,25 @@ body::before {
     color: var(--primary-color);
 }
 
-.manage-portal {
+.manage-portal, .manage-portal-success {
     background: var(--surface-color);
     padding: 2rem;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
+    max-height: 80vh;
+    overflow-y: auto;
 }
-.manage-portal h2 {
+.manage-portal h2, .manage-portal-success h2 {
     margin-top: 0;
 }
+
+.manage-portal-success {
+    text-align: center;
+}
+.manage-portal-success .success-message {
+    margin-bottom: 2rem;
+}
+
 
 .manage-container {
     display: grid;
@@ -760,10 +777,6 @@ body::before {
 
 
 @media (max-width: 992px) {
-    body::before {
-      width: 100%;
-      opacity: 0.2;
-    }
     .main-container {
         grid-template-columns: 1fr;
     }
@@ -797,7 +810,7 @@ body::before {
         width: 100%;
     }
     .month-navigator {
-      padding: 0.5rem;
+      padding-bottom: 0.5rem;
       flex-direction: column;
       gap: 0.5rem;
     }
