@@ -760,6 +760,38 @@ const BookingManagementPortal = ({ setView }) => {
     const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
     const [updateComplete, setUpdateComplete] = useState(false);
 
+    const performLookup = async (idToLookup: string) => {
+        if (!idToLookup) return;
+        setError('');
+        setSuccessMessage('');
+        setIsLoading(true);
+        setBooking(null);
+        try {
+            const foundBooking = await api.getBookingById(idToLookup.trim());
+            if (foundBooking) {
+                setBooking(foundBooking);
+                setManagedEventIds(foundBooking.bookedEventIds);
+            } else {
+                setError('Buchung nicht gefunden. Bitte überprüfe die Buchungsnummer.');
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Auto-lookup booking if ID is provided in URL
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const bookingIdFromUrl = urlParams.get('bookingId');
+        if (bookingIdFromUrl) {
+            setBookingIdInput(bookingIdFromUrl);
+            performLookup(bookingIdFromUrl);
+        }
+    }, []);
+
+
     useEffect(() => {
         if (booking) {
             setIsLoading(true);
@@ -778,25 +810,9 @@ const BookingManagementPortal = ({ setView }) => {
         }
     }, [managedEventIds, booking]);
 
-    const handleLookup = async (e) => {
+    const handleLookupSubmit = async (e) => {
         e.preventDefault();
-        setError('');
-        setSuccessMessage('');
-        setIsLoading(true);
-        setBooking(null);
-        try {
-            const foundBooking = await api.getBookingById(bookingIdInput.trim());
-            if (foundBooking) {
-                setBooking(foundBooking);
-                setManagedEventIds(foundBooking.bookedEventIds);
-            } else {
-                setError('Buchung nicht gefunden. Bitte überprüfe die Buchungsnummer.');
-            }
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
-        }
+        performLookup(bookingIdInput);
     };
 
     const handleSaveChanges = async () => {
@@ -889,7 +905,7 @@ const BookingManagementPortal = ({ setView }) => {
     if (!booking) {
         return html`
             <section class="booking-lookup-form">
-                <form onSubmit=${handleLookup}>
+                <form onSubmit=${handleLookupSubmit}>
                     <h2>Buchung verwalten</h2>
                     <p>Gib deine Buchungsnummer ein, um deine Termine zu bearbeiten.</p>
                     <div class="form-group">
@@ -1214,6 +1230,13 @@ const App = () => {
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
     useEffect(() => {
+        // Handle view from URL parameter on initial load
+        const urlParams = new URLSearchParams(window.location.search);
+        const viewFromUrl = urlParams.get('view');
+        if (viewFromUrl === 'manage') {
+            setView('manage');
+        }
+
         // Fetch the initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);

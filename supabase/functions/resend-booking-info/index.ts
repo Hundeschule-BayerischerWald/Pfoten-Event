@@ -36,7 +36,7 @@ function createRecoveryEmailHtml(customerName: string, bookingIds: string[]) {
         <ul>${bookingsHtml}</ul>
         <p style="margin-top: 20px;">Du kannst diese Nummern nun verwenden, um deine Buchungen zu verwalten.</p>
         <div style="text-align: center; margin: 25px 0;">
-          <a href="http://pfotencard.hs-bw.com/" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+          <a href="http://pfotencard.hs-bw.com/?view=manage" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
             Zur Buchungsverwaltung
           </a>
         </div>
