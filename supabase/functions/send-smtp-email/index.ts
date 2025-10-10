@@ -31,7 +31,7 @@ const CATEGORY_COLORS = {
 };
 
 
-function createEmailHtml(title: string, customerName: string, bookingId: string, events: any[]) {
+function createEmailHtml(title: string, customerName: string, bookingId: string, events: any[], manageUrl: string) {
   const eventsHtml = events.map(event => {
     const styleInfo = CATEGORY_COLORS[event.category] || { bg: '#f0f0f0', text: '#333' };
     const borderStyle = styleInfo.border ? `border: ${styleInfo.border};` : '';
@@ -57,7 +57,7 @@ function createEmailHtml(title: string, customerName: string, bookingId: string,
     <p>vielen Dank! Hier ist die Zusammenfassung deiner Termine:</p>${eventsHtml}
     <div class="booking-id">Deine Buchungsnummer lautet: <strong>${bookingId}</strong></div>
     <div style="text-align: center; margin: 25px 0;">
-      <a href="http://pfotencard.hs-bw.com/?view=manage&bookingId=${bookingId}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+      <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
         Buchung verwalten
       </a>
     </div>
@@ -78,12 +78,15 @@ serve(async (req) => {
         throw new Error("RESEND_API_KEY ist nicht in den Supabase Secrets gesetzt.");
     }
 
-    const { type, customerName, customerEmail, bookingId, events } = await req.json();
+    const { type, customerName, customerEmail, bookingId, events, baseUrl } = await req.json();
     console.log(`[send-smtp-email] Processing request for ${customerEmail}, type: ${type}`);
 
     const subject = type === 'new-booking' ? 'Deine Buchungsbestätigung für die Hundeschule' : 'Deine Buchung wurde aktualisiert';
     const title = type === 'new-booking' ? 'Buchung erfolgreich!' : 'Buchung aktualisiert!';
-    const htmlContent = createEmailHtml(title, customerName, bookingId, events);
+    
+    const finalBaseUrl = baseUrl || 'http://pfotencard.hs-bw.com';
+    const manageUrl = `${finalBaseUrl}/?view=manage&bookingId=${bookingId}`;
+    const htmlContent = createEmailHtml(title, customerName, bookingId, events, manageUrl);
 
     console.log(`[send-smtp-email] Attempting to send email to ${customerEmail} via Resend API.`);
 

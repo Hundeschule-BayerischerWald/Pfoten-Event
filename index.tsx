@@ -298,7 +298,10 @@ const ForgotPasswordModal = ({ onClose }) => {
 
         try {
             const { error: invokeError } = await supabase.functions.invoke('resend-booking-info', {
-                body: { email: email.trim().toLowerCase() }
+                body: { 
+                    email: email.trim().toLowerCase(),
+                    baseUrl: window.location.origin
+                }
             });
 
             if (invokeError) {
@@ -843,7 +846,8 @@ const BookingManagementPortal = ({ setView }) => {
                         customerName: updatedBooking.customer.name,
                         customerEmail: updatedBooking.customer.email,
                         bookingId: updatedBooking.bookingId,
-                        events: updatedEventsDetails
+                        events: updatedEventsDetails,
+                        baseUrl: window.location.origin
                     }
                 });
             } catch (emailError) {
@@ -1051,7 +1055,8 @@ const CustomerBookingView = () => {
                         customerName: customer.name,
                         customerEmail: customer.email,
                         bookingId: booking.bookingId,
-                        events: bookedEventsDetails
+                        events: bookedEventsDetails,
+                        baseUrl: window.location.origin
                     }
                 });
             } catch (emailError) {

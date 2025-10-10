@@ -19,7 +19,7 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 // HINWEIS: Um von deiner eigenen Domain zu senden, musst du sie in Resend verifizieren.
 const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
 
-function createRecoveryEmailHtml(customerName: string, bookingIds: string[]) {
+function createRecoveryEmailHtml(customerName: string, bookingIds: string[], manageUrl: string) {
     const bookingsHtml = bookingIds.map(id => `
         <li style="font-size: 16px; background-color: #f0f0f0; padding: 10px; border-radius: 4px; margin-bottom: 5px; font-family: monospace;">${id}</li>
     `).join('');
@@ -36,7 +36,7 @@ function createRecoveryEmailHtml(customerName: string, bookingIds: string[]) {
         <ul>${bookingsHtml}</ul>
         <p style="margin-top: 20px;">Du kannst diese Nummern nun verwenden, um deine Buchungen zu verwalten.</p>
         <div style="text-align: center; margin: 25px 0;">
-          <a href="http://pfotencard.hs-bw.com/?view=manage" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+          <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
             Zur Buchungsverwaltung
           </a>
         </div>
@@ -56,7 +56,7 @@ serve(async (req) => {
     });
   
     try {
-        const { email } = await req.json();
+        const { email, baseUrl } = await req.json();
         if (!email) {
             console.warn("[resend-booking-info] Request received without email.");
             return genericSuccessResponse;
@@ -100,7 +100,9 @@ serve(async (req) => {
             return genericSuccessResponse;
         }
         
-        const htmlContent = createRecoveryEmailHtml(customerData.name, bookingIds);
+        const finalBaseUrl = baseUrl || 'http://pfotencard.hs-bw.com';
+        const manageUrl = `${finalBaseUrl}/?view=manage`;
+        const htmlContent = createRecoveryEmailHtml(customerData.name, bookingIds, manageUrl);
         
         console.log(`[resend-booking-info] Attempting to send recovery email to ${email} via Resend API.`);
         
