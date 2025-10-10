@@ -227,14 +227,54 @@ const api = {
         return {...data, date: new Date(data.date)};
     },
     updateEvent: async (eventId: string, updatedEventData: Partial<Omit<Event, 'id' | 'date' | 'total_capacity' | 'booked_capacity'>> & { date?: Date; totalCapacity?: number }): Promise<Event> => {
+        // 1. Teilnehmer vor der Aktualisierung abrufen
+        const { data: eventWithBookings, error: fetchError } = await supabase
+            .from('events')
+            .select('*, bookings_events(bookings(customers(*)))')
+            .eq('id', eventId)
+            .single();
+
+        if (fetchError) {
+            throw new Error("Fehler beim Abrufen der Event-Teilnehmer.");
+        }
+        
+        const participants = eventWithBookings?.bookings_events
+            .map(be => be.bookings?.customers)
+            .filter(Boolean) ?? [];
+        
+        // 2. Event aktualisieren
         const payload: any = { ...updatedEventData };
         if (updatedEventData.date) payload.date = updatedEventData.date.toISOString();
         if (updatedEventData.totalCapacity) payload.total_capacity = updatedEventData.totalCapacity;
-        delete payload.totalCapacity; // remove camelCase version
+        delete payload.totalCapacity; // camelCase-Version entfernen
 
         const { data, error } = await supabase.from('events').update(payload).eq('id', eventId).select().single();
         if (error) throw new Error("Event konnte nicht aktualisiert werden.");
-        return {...data, date: new Date(data.date)};
+        
+        const updatedEventResult = {...data, date: new Date(data.date)};
+
+        // 3. Benachrichtigungen senden, wenn Teilnehmer vorhanden sind
+        if (participants.length > 0) {
+            try {
+                await supabase.functions.invoke('send-update-notification', {
+                    body: {
+                        customers: participants,
+                        event: {
+                            title: updatedEventResult.title,
+                            date: new Date(updatedEventResult.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
+                            location: updatedEventResult.location,
+                            category: updatedEventResult.category
+                        }
+                    }
+                });
+            } catch (invokeError) {
+                // Fehler loggen, aber den Vorgang nicht abbrechen.
+                // Die Event-Aktualisierung ist wichtiger als die Benachrichtigung.
+                console.warn("Benachrichtigungs-E-Mail über Event-Änderung konnte nicht gesendet werden:", invokeError);
+            }
+        }
+        
+        return updatedEventResult;
     },
     deleteEvent: async (eventId: string): Promise<void> => {
         // Zuerst prüfen, ob Buchungen für dieses Event existieren

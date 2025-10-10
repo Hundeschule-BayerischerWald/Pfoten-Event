@@ -30,7 +30,7 @@ const CATEGORY_COLORS = {
     "SkyBlue": { bg: "SkyBlue", text: "#1a1a1a" },
     "Peru": { bg: "Peru", text: "white" },
     "Gold": { bg: "Gold", text: "#1a1a1a" },
-    "White": { bg: "White", text: "#1a1a1a", border: "1px solid #dee2e6" },
+    "White": { bg: "White", text: "#1a1a1a" },
     "DarkKhaki": { bg: "DarkKhaki", text: "#1a1a1a" },
     "Tomato": { bg: "Tomato", text: "white" }
 };
@@ -38,8 +38,7 @@ const CATEGORY_COLORS = {
 function createEmailHtml(title: string, customerName: string, bookingId: string, events: any[], manageUrl: string) {
   const eventsHtml = events.map(event => {
     const styleInfo = CATEGORY_COLORS[event.category] || { bg: '#f0f0f0', text: '#333' };
-    const borderStyle = styleInfo.border ? `border: ${styleInfo.border};` : '';
-    const eventStyle = `background-color: ${styleInfo.bg}; color: ${styleInfo.text}; ${borderStyle} padding: 12px 15px; margin-bottom: 10px; border-radius: 6px;`;
+    const eventStyle = `background-color: ${styleInfo.bg}; color: ${styleInfo.text}; border: 1px solid #dee2e6; padding: 12px 15px; margin-bottom: 10px; border-radius: 6px;`;
     
     return `
       <div style="${eventStyle}">
