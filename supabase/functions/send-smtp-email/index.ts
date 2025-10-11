@@ -19,6 +19,7 @@ declare const Deno: any;
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
+const EMAIL_HEADER_IMAGE_URL = 'https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg';
 
 // WICHTIG: Das PDF muss in einem öffentlichen Supabase Storage Bucket namens "assets" liegen.
 const PDF_ATTACHMENT_URL = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/assets/Wichtige-Infos-zur-Anmeldung.pdf`;
@@ -38,7 +39,7 @@ const CATEGORY_COLORS = {
 function createEmailHtml(title: string, customerName: string, bookingId: string, events: any[], manageUrl: string) {
   const eventsHtml = events.map(event => {
     const styleInfo = CATEGORY_COLORS[event.category] || { bg: '#f0f0f0', text: '#333' };
-    const eventStyle = `background-color: ${styleInfo.bg}; color: ${styleInfo.text}; border: 1px solid #dee2e6; padding: 12px 15px; margin-bottom: 10px; border-radius: 6px;`;
+    const eventStyle = `background-color: ${styleInfo.bg}; color: ${styleInfo.text}; border: 1px solid rgba(0,0,0,0.1); padding: 8px 15px; margin-bottom: 8px; border-radius: 8px;`;
     
     return `
       <div style="${eventStyle}">
@@ -57,7 +58,7 @@ function createEmailHtml(title: string, customerName: string, bookingId: string,
     .header { font-size: 24px; color: #28a745; margin: 0 0 10px; }
     .booking-id { background-color: #e9ecef; padding: 10px; border-radius: 6px; text-align: center; margin-top: 15px; }
     </style></head><body><div class="container">
-    <img src="https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg" alt="Hundeschule Banner" style="max-width: 100%; height: auto; display: block;">
+    <img src="${EMAIL_HEADER_IMAGE_URL}" alt="Hundeschule Banner" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
     <div class="content">
         <h1 class="header">${title}</h1><p>Hallo ${customerName},</p>
         <p>vielen Dank! Hier ist die Zusammenfassung deiner Termine:</p>${eventsHtml}

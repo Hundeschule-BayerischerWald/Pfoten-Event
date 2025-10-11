@@ -440,7 +440,7 @@ const BookingPanel = ({ selectedEvents, customer, onCustomerChange, onSubmit, er
         return html`
             <div class="booking-summary">
                 <h3>Deine Auswahl</h3>
-                <p class="empty-state">Wähle links ein oder mehrere Events aus, um mit der Anmeldung zu beginnen.</p>
+                <p class="empty-state">Wähle ein oder mehrere Events aus, um mit der Anmeldung zu beginnen.</p>
             </div>
         `;
     }

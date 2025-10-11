@@ -19,13 +19,14 @@ declare const Deno: any;
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
+const EMAIL_HEADER_IMAGE_URL = 'https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg';
 
 // WICHTIG: Das PDF muss in einem öffentlichen Supabase Storage Bucket namens "assets" liegen.
 const PDF_ATTACHMENT_URL = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/assets/Wichtige-Infos-zur-Anmeldung.pdf`;
 
 function createRecoveryEmailHtml(customerName: string, bookingIds: string[], manageUrl: string) {
     const bookingsHtml = bookingIds.map(id => `
-        <li style="font-size: 16px; background-color: #f0f0f0; padding: 10px; border-radius: 4px; margin-bottom: 5px; font-family: monospace;">${id}</li>
+        <li style="border: 1px solid #e0e0e0; background-color: #f9f9f9; padding: 8px 15px; margin-bottom: 8px; border-radius: 8px; font-family: monospace; font-size: 16px; text-align: center;">${id}</li>
     `).join('');
 
     return `
@@ -36,7 +37,7 @@ function createRecoveryEmailHtml(customerName: string, bookingIds: string[], man
         .header { font-size: 24px; color: #007bff; margin: 0 0 10px; }
         ul { list-style: none; padding: 0; }
         </style></head><body><div class="container">
-        <img src="https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg" alt="Hundeschule Banner" style="max-width: 100%; height: auto; display: block;">
+        <img src="${EMAIL_HEADER_IMAGE_URL}" alt="Hundeschule Banner" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
         <div class="content">
             <h1 class="header">Deine Buchungsnummern</h1><p>Hallo ${customerName},</p>
             <p>du hast deine Buchungsnummern bei uns angefordert. Hier sind alle Nummern, die unter deiner E-Mail-Adresse registriert sind:</p>
@@ -56,7 +57,7 @@ function createRecoveryEmailHtml(customerName: string, bookingIds: string[], man
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }});
+    return new Response('ok', { headers: { 'Access-control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }});
   }
   
     const genericSuccessResponse = new Response(JSON.stringify({ message: 'Anfrage verarbeitet.' }), {
