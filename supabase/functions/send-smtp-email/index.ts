@@ -31,40 +31,44 @@ const CATEGORY_COLORS = {
     "SkyBlue": { bg: "SkyBlue", text: "#1a1a1a" },
     "Peru": { bg: "Peru", text: "white" },
     "Gold": { bg: "Gold", text: "#1a1a1a" },
-    "White": { bg: "White", text: "#1a1a1a" },
+    "White": { bg: "#F6F6C9", text: "#1a1a1a" },
     "DarkKhaki": { bg: "DarkKhaki", text: "#1a1a1a" },
     "Tomato": { bg: "Tomato", text: "white" }
 };
 
-function createEmailHtml(title: string, customerName: string, bookingId: string, events: any[], manageUrl: string) {
+function createEmailHtml(title: string, customerName: string, bookingId: string, events: any[], manageUrl: string, type: string) {
   const eventsHtml = events.map(event => {
     const styleInfo = CATEGORY_COLORS[event.category] || { bg: '#f0f0f0', text: '#333' };
-    const eventStyle = `background-color: ${styleInfo.bg}; color: ${styleInfo.text}; border: 1px solid rgba(0,0,0,0.1); padding: 8px 15px; margin-bottom: 8px; border-radius: 8px;`;
+    const eventStyle = `background-color: ${styleInfo.bg}; color: ${styleInfo.text}; border: 1px solid rgba(0,0,0,0.1); padding: 12px 15px; margin-bottom: 8px; border-radius: 12px; font-size: 14px; line-height: 1.5;`;
     
     return `
       <div style="${eventStyle}">
-        <p style="margin: 0; font-weight: bold; font-size: 16px; color: ${styleInfo.text};">${event.title}</p>
-        <p style="margin: 5px 0 0; color: ${styleInfo.text}; opacity: 0.9;">${event.date}</p>
-        <p style="margin: 5px 0 0; color: ${styleInfo.text}; opacity: 0.9;">Ort: ${event.location}</p>
+        <div style="font-size: 15px; font-weight: bold; color: ${styleInfo.text}; margin-bottom: 5px;">${event.title}</div>
+        <div style="font-size: 13px; color: ${styleInfo.text}; opacity: 0.9;">
+          ${event.date} &bull; Ort: ${event.location}
+        </div>
       </div>
     `
   }).join('');
 
+  const introductoryText = type === 'new-booking'
+    ? `<p>Hallo ${customerName},</p><p>vielen Dank! Hier ist die Zusammenfassung deiner Termine:</p>`
+    : `<p>Hier ist die Zusammenfassung deiner Termine:</p>`;
+
   return `
     <!DOCTYPE html><html><head><style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
-    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
     .content { padding: 20px; }
     .header { font-size: 24px; color: #28a745; margin: 0 0 10px; }
-    .booking-id { background-color: #e9ecef; padding: 10px; border-radius: 6px; text-align: center; margin-top: 15px; }
+    .booking-id { background-color: #e9ecef; padding: 10px; border-radius: 12px; text-align: center; margin-top: 15px; }
     </style></head><body><div class="container">
     <img src="${EMAIL_HEADER_IMAGE_URL}" alt="Hundeschule Banner" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
     <div class="content">
-        <h1 class="header">${title}</h1><p>Hallo ${customerName},</p>
-        <p>vielen Dank! Hier ist die Zusammenfassung deiner Termine:</p>${eventsHtml}
+        <h1 class="header">${title}</h1>${introductoryText}${eventsHtml}
         <div class="booking-id">Deine Buchungsnummer lautet: <strong>${bookingId}</strong></div>
         <div style="text-align: center; margin: 25px 0;">
-          <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+          <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 12px; font-weight: bold; display: inline-block;">
             Buchung verwalten
           </a>
         </div>
@@ -110,10 +114,10 @@ serve(async (req) => {
     }
 
     const subject = type === 'new-booking' ? 'Deine Buchungsbestätigung für die Hundeschule' : 'Deine Buchung wurde aktualisiert';
-    const title = type === 'new-booking' ? 'Buchung erfolgreich!' : 'Buchung aktualisiert!';
+    const title = type === 'new-booking' ? 'Buchung erfolgreich!' : 'Deine Buchung wurde aktualisiert';
     
     const manageUrl = `https://pfoten-event.vercel.app/?view=manage&bookingId=${bookingId}`;
-    const htmlContent = createEmailHtml(title, customerName, bookingId, events, manageUrl);
+    const htmlContent = createEmailHtml(title, customerName, bookingId, events, manageUrl, type);
 
     const emailPayload: any = {
         from: FROM_EMAIL,

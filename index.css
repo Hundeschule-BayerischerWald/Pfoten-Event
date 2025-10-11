@@ -92,7 +92,7 @@ body {
 .month-navigator {
     display: flex;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--border-color);
 }
@@ -192,13 +192,56 @@ body {
     transform: translate(-50%, -50%);
 }
 
+/* --- Legend Styles --- */
+.event-legend {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background-color: var(--disabled-color);
+    border-radius: var(--border-radius);
+}
+
+.event-legend h4 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--text-color);
+}
+
+.legend-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    row-gap: 0.5rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+}
+
+.legend-color-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.15); /* Add border to all swatches for consistency */
+}
+
+
 /* Event Category Colors */
 .event-category-orchid { background-color: Orchid; }
 .event-category-limegreen { background-color: LimeGreen; }
 .event-category-skyblue { background-color: SkyBlue; }
 .event-category-peru { background-color: Peru; }
 .event-category-gold { background-color: Gold; }
-.event-category-white { background-color: White; border: 1px solid var(--border-color); }
+.event-category-white { background-color: #F6F6C9; border: 1px solid var(--border-color); }
 .event-category-darkkhaki { background-color: DarkKhaki; }
 .event-category-tomato { background-color: Tomato; }
 

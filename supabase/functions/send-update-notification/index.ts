@@ -19,19 +19,19 @@ const CATEGORY_COLORS = {
     "SkyBlue": { bg: "SkyBlue", text: "#1a1a1a" },
     "Peru": { bg: "Peru", text: "white" },
     "Gold": { bg: "Gold", text: "#1a1a1a" },
-    "White": { bg: "White", text: "#1a1a1a" },
+    "White": { bg: "#F6F6C9", text: "#1a1a1a" },
     "DarkKhaki": { bg: "DarkKhaki", text: "#1a1a1a" },
     "Tomato": { bg: "Tomato", text: "white" }
 };
 
 function createUpdateEmailHtml(customerName: string, event: any, manageUrl: string) {
   const styleInfo = CATEGORY_COLORS[event.category] || { bg: '#fff3cd', text: '#333' };
-  const eventStyle = `background-color: ${styleInfo.bg}; color: ${styleInfo.text}; border: 1px solid rgba(0,0,0,0.1); padding: 8px 15px; margin: 20px 0; border-radius: 8px;`;
+  const eventStyle = `background-color: ${styleInfo.bg}; color: ${styleInfo.text}; border: 1px solid rgba(0,0,0,0.1); padding: 12px 15px; margin: 20px 0; border-radius: 12px; font-size: 14px; line-height: 1.5;`;
   
   return `
     <!DOCTYPE html><html><head><style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
-    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
     .content { padding: 20px; }
     .header { font-size: 24px; color: #ffc107; margin: 0 0 10px; }
     </style></head><body><div class="container">
@@ -40,13 +40,15 @@ function createUpdateEmailHtml(customerName: string, event: any, manageUrl: stri
         <h1 class="header">Wichtige Info: Event-Änderung</h1><p>Hallo ${customerName},</p>
         <p>bitte beachte, dass sich die Details für eines deiner gebuchten Events geändert haben. Hier sind die neuen Informationen:</p>
         <div style="${eventStyle}">
-          <p style="margin: 0; font-weight: bold; font-size: 16px; color: ${styleInfo.text};">${event.title}</p>
-          <p style="margin: 5px 0 0; color: ${styleInfo.text}; opacity: 0.9;"><strong>Neuer Termin:</strong> ${event.date}</p>
-          <p style="margin: 5px 0 0; color: ${styleInfo.text}; opacity: 0.9;"><strong>Neuer Ort:</strong> ${event.location}</p>
+          <div style="font-size: 15px; font-weight: bold; color: ${styleInfo.text}; margin-bottom: 5px;">${event.title}</div>
+          <div style="font-size: 13px; color: ${styleInfo.text}; opacity: 0.9;">
+            <strong>Neuer Termin:</strong> ${event.date}<br>
+            <strong>Neuer Ort:</strong> ${event.location}
+          </div>
         </div>
         <p>Deine Anmeldung für dieses Event wurde automatisch auf die neuen Daten übertragen.</p>
         <div style="text-align: center; margin: 25px 0;">
-          <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+          <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 12px; font-weight: bold; display: inline-block;">
             Buchung verwalten
           </a>
         </div>

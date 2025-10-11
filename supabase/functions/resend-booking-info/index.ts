@@ -26,13 +26,13 @@ const PDF_ATTACHMENT_URL = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/pu
 
 function createRecoveryEmailHtml(customerName: string, bookingIds: string[], manageUrl: string) {
     const bookingsHtml = bookingIds.map(id => `
-        <li style="border: 1px solid #e0e0e0; background-color: #f9f9f9; padding: 8px 15px; margin-bottom: 8px; border-radius: 8px; font-family: monospace; font-size: 16px; text-align: center;">${id}</li>
+        <li style="border: 1px solid #e0e0e0; background-color: #f9f9f9; padding: 10px 15px; margin-bottom: 8px; border-radius: 12px; font-family: monospace; font-size: 16px; text-align: center;">${id}</li>
     `).join('');
 
     return `
         <!DOCTYPE html><html><head><style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
-        .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+        .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
         .content { padding: 20px; }
         .header { font-size: 24px; color: #007bff; margin: 0 0 10px; }
         ul { list-style: none; padding: 0; }
@@ -44,7 +44,7 @@ function createRecoveryEmailHtml(customerName: string, bookingIds: string[], man
             <ul>${bookingsHtml}</ul>
             <p style="margin-top: 20px;">Du kannst diese Nummern nun verwenden, um deine Buchungen zu verwalten.</p>
             <div style="text-align: center; margin: 25px 0;">
-              <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+              <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 12px; font-weight: bold; display: inline-block;">
                 Zur Buchungsverwaltung
               </a>
             </div>

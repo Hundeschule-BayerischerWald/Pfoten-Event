@@ -22,13 +22,13 @@ const CANCELLATION_WINDOW_HOURS = 24; // Stornierungen/Änderungen nur bis 24h v
 
 const EVENT_CATEGORIES = {
     "Orchid": { titles: ["Welpenstunde"], locations: ["Welpenwiese"] },
-    "LimeGreen": { titles: ["L2 - Grundlagen"], locations: ["Der sichere Start"] },
-    "SkyBlue": { titles: ["Tierische Eindrücke"], locations: ["Tierpark Straubing"] },
-    "Peru": { titles: ["L4 - Treffpunkt"], locations: ["Bahnhof Mitterfels"] },
+    "LimeGreen": { titles: ["Level 2 - Grunderziehung"], locations: ["Der sichere Start"] },
+    "SkyBlue": { titles: ["Level 3 - Fortgeschrittene"], locations: ["Hundeplatz Ascha"] },
+    "Peru": { titles: ["Level 4 - Master Class"], locations: ["Hundeplatz Ascha"] },
     "Gold": { titles: ["Trainerstunde"], locations: ["Nach Absprache"] },
-    "White": { titles: ["Verbindlichkeit auf Distanz"], locations: ["Weites Feld"] },
-    "DarkKhaki": { titles: ["Gelassenheitstraining"], locations: ["Stadtwald"] },
-    "Tomato": { titles: ["Spezial-Event: Apportieren"], locations: ["Hundeschule Innenbereich"] }
+    "White": { titles: ["Theorie: Vorträge & Seminare"], locations: ["Hundeschule Innenbereich"] },
+    "DarkKhaki": { titles: ["Praxis: Specials & Workshops"], locations: ["Stadtwald"] },
+    "Tomato": { titles: ["Prüfungs-Stunden"], locations: ["Hundeschule Innenbereich"] }
 };
 
 // --- TYPEN & INTERFACES ---
@@ -341,6 +341,27 @@ const toInputTimeString = (date: Date): string => {
 
 
 // --- KOMPONENTEN ---
+
+const EventLegend = () => {
+    return html`
+        <div class="event-legend">
+            <h4>Legende</h4>
+            <ul class="legend-list">
+                ${Object.entries(EVENT_CATEGORIES).map(([color, details]) => {
+                    const categoryClass = `event-category-${color.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+                    // Use the first title as the representative name for the legend
+                    const representativeTitle = details.titles[0];
+                    return html`
+                        <li class="legend-item" key=${color}>
+                            <span class=${`legend-color-swatch ${categoryClass}`}></span>
+                            <span>${representativeTitle}</span>
+                        </li>
+                    `;
+                })}
+            </ul>
+        </div>
+    `;
+};
 
 const ForgotPasswordModal = ({ onClose }) => {
     const [email, setEmail] = useState('');
@@ -1471,6 +1492,7 @@ const CustomerBookingView = ({ setView }) => {
                     <div class="month-navigator">
                         <h2>Eventliste Hundeschule</h2>
                     </div>
+                    <${EventLegend} />
                     <div class="event-list-container">
                         ${eventsByWeek.length > 0 ? eventsByWeek.map(weekGroup => html`
                             <div class="week-group" key=${weekGroup.weekHeader}>
