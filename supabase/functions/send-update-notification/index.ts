@@ -29,26 +29,30 @@ function createUpdateEmailHtml(customerName: string, event: any, manageUrl: stri
   
   return `
     <!DOCTYPE html><html><head><style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; }
-    .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+    .content { padding: 20px; }
     .header { font-size: 24px; color: #ffc107; margin: 0 0 10px; }
     </style></head><body><div class="container">
-    <h1 class="header">Wichtige Info: Event-Änderung</h1><p>Hallo ${customerName},</p>
-    <p>bitte beachte, dass sich die Details für eines deiner gebuchten Events geändert haben. Hier sind die neuen Informationen:</p>
-    <div style="${eventStyle}">
-      <p style="margin: 0; font-weight: bold; font-size: 16px; color: ${styleInfo.text};">${event.title}</p>
-      <p style="margin: 5px 0 0; color: ${styleInfo.text}; opacity: 0.9;"><strong>Neuer Termin:</strong> ${event.date}</p>
-      <p style="margin: 5px 0 0; color: ${styleInfo.text}; opacity: 0.9;"><strong>Neuer Ort:</strong> ${event.location}</p>
-    </div>
-    <p>Deine Anmeldung für dieses Event wurde automatisch auf die neuen Daten übertragen.</p>
-    <div style="text-align: center; margin: 25px 0;">
-      <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-        Buchung verwalten
-      </a>
-    </div>
-    <p style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
-      Dies ist eine automatisch generierte E-Mail. Bei Fragen antworte bitte auf anmeldungen@pfotencard.hs-bw.com.
-    </p></div></body></html>
+    <img src="https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg" alt="Hundeschule Banner" style="max-width: 100%; height: auto; display: block;">
+    <div class="content">
+        <h1 class="header">Wichtige Info: Event-Änderung</h1><p>Hallo ${customerName},</p>
+        <p>bitte beachte, dass sich die Details für eines deiner gebuchten Events geändert haben. Hier sind die neuen Informationen:</p>
+        <div style="${eventStyle}">
+          <p style="margin: 0; font-weight: bold; font-size: 16px; color: ${styleInfo.text};">${event.title}</p>
+          <p style="margin: 5px 0 0; color: ${styleInfo.text}; opacity: 0.9;"><strong>Neuer Termin:</strong> ${event.date}</p>
+          <p style="margin: 5px 0 0; color: ${styleInfo.text}; opacity: 0.9;"><strong>Neuer Ort:</strong> ${event.location}</p>
+        </div>
+        <p>Deine Anmeldung für dieses Event wurde automatisch auf die neuen Daten übertragen.</p>
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+            Buchung verwalten
+          </a>
+        </div>
+        <p style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
+          Dies ist eine automatisch generierte E-Mail. Bei Fragen antworte bitte auf anmeldungen@pfotencard.hs-bw.com.
+        </p>
+    </div></div></body></html>
   `;
 }
 

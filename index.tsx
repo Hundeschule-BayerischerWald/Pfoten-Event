@@ -226,6 +226,21 @@ const api = {
         if (error || !data) throw new Error("Event konnte nicht erstellt werden.");
         return {...data, date: new Date(data.date)};
     },
+    addEvents: async (eventsData: any[]): Promise<Event[]> => {
+        const eventsToInsert = eventsData.map(e => ({
+            title: e.title,
+            location: e.location || "Hundeplatz Ascha", // Default location
+            date: e.date.toISOString(),
+            total_capacity: e.totalCapacity,
+            category: e.category,
+            booked_capacity: 0
+        }));
+
+        const { data, error } = await supabase.from('events').insert(eventsToInsert).select();
+        if (error || !data) throw new Error("Events konnten nicht erstellt werden. " + error?.message);
+
+        return data.map(e => ({...e, date: new Date(e.date)}));
+    },
     updateEvent: async (eventId: string, updatedEventData: Partial<Omit<Event, 'id' | 'date' | 'total_capacity' | 'booked_capacity'>> & { date?: Date; totalCapacity?: number }): Promise<Event> => {
         // 1. Teilnehmer und deren Booking-IDs vor der Aktualisierung abrufen
         const { data: eventWithBookings, error: fetchError } = await supabase
@@ -764,10 +779,162 @@ const BookingOverview = () => {
     `;
 };
 
+const CsvImportModal = ({ onImport, onClose }) => {
+    const [file, setFile] = useState(null);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
+    const fileInputRef = useRef(null);
+
+    const handleFileChange = (e) => {
+        setFile(e.target.files[0]);
+        setError('');
+        setSuccessMessage('');
+    };
+
+    const handleImportClick = async () => {
+        if (!file) {
+            setError('Bitte wähle eine CSV-Datei aus.');
+            return;
+        }
+        setLoading(true);
+        setError('');
+        setSuccessMessage('');
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const text = e.target.result;
+            try {
+                const parsedEvents = parseCsv(text);
+                if (parsedEvents.length === 0) {
+                    throw new Error("Die CSV-Datei ist leer oder enthält keine validen Datenzeilen.");
+                }
+                await onImport(parsedEvents);
+                setSuccessMessage(`${parsedEvents.length} Events erfolgreich importiert!`);
+                setFile(null);
+                if(fileInputRef.current) fileInputRef.current.value = "";
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+        reader.onerror = () => {
+             setError("Fehler beim Lesen der Datei.");
+             setLoading(false);
+        };
+        reader.readAsText(file);
+    };
+
+    const parseCsv = (csvText) => {
+        const lines = csvText.trim().split(/\r?\n/).filter(line => line.trim());
+        if (lines.length < 2) {
+            throw new Error("CSV-Datei muss eine Kopfzeile und mindestens eine Datenzeile enthalten.");
+        }
+
+        const header = lines.shift().trim().toLowerCase();
+        const expectedHeader = "datum,uhrzeit,titel,treffpunkt,plätze,kategorie";
+        if (header !== expectedHeader) {
+            throw new Error(`Falsche Kopfzeile. Erwartet: "datum,uhrzeit,titel,treffpunkt,plätze,kategorie"`);
+        }
+        
+        const events = [];
+        const errors = [];
+        
+        lines.forEach((line, index) => {
+            const values = line.split(',');
+            if (values.length !== 6) {
+                errors.push(`Zeile ${index + 2}: Falsche Spaltenanzahl. Erwartet 6, gefunden ${values.length}.`);
+                return;
+            }
+            
+            const [dateStr, timeStr, title, location, capacityStr, category] = values.map(v => v.trim());
+
+            if (!dateStr || !timeStr || !title || !capacityStr || !category) {
+                 errors.push(`Zeile ${index + 2}: Ein oder mehrere Felder sind leer. Alle Felder außer Treffpunkt sind erforderlich.`);
+                 return;
+            }
+
+            const combinedDate = new Date(`${dateStr}T${timeStr}`);
+            if (isNaN(combinedDate.getTime())) {
+                errors.push(`Zeile ${index + 2}: Ungültiges Datum/Uhrzeit-Format. Bitte JJJJ-MM-TT und HH:MM verwenden.`);
+                return;
+            }
+
+            const totalCapacity = parseInt(capacityStr, 10);
+            if (isNaN(totalCapacity) || totalCapacity < 1) {
+                errors.push(`Zeile ${index + 2}: "Plätze" muss eine Zahl größer 0 sein.`);
+                return;
+            }
+
+            if (!Object.keys(EVENT_CATEGORIES).includes(category)) {
+                 errors.push(`Zeile ${index + 2}: Unbekannte Kategorie "${category}". Gültige Kategorien sind: ${Object.keys(EVENT_CATEGORIES).join(', ')}`);
+                 return;
+            }
+            
+            events.push({
+                date: combinedDate,
+                title,
+                location: location || "Hundeplatz Ascha",
+                totalCapacity,
+                category
+            });
+        });
+        
+        if (errors.length > 0) {
+            throw new Error("Fehler in der CSV-Datei:\n" + errors.join('\n'));
+        }
+        
+        return events;
+    };
+    
+    return html`
+        <div class="modal-overlay" onClick=${onClose}>
+            <div class="modal-content" onClick=${e => e.stopPropagation()}>
+                <div class="modal-header">
+                    <h2>Events per CSV importieren</h2>
+                    <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
+                </div>
+                <div class="modal-body">
+                    <p>Lade eine CSV-Datei hoch, um mehrere Events auf einmal zu erstellen.</p>
+                    <div class="csv-instructions">
+                        <strong>Anforderungen:</strong>
+                        <ul>
+                            <li>Die Datei muss im CSV-Format sein (komma-getrennt).</li>
+                            <li>Die erste Zeile muss die exakte Kopfzeile sein: <code>Datum,Uhrzeit,Titel,Treffpunkt,Plätze,Kategorie</code></li>
+                            <li>Datumsformat: <code>JJJJ-MM-TT</code></li>
+                            <li>Uhrzeitformat: <code>HH:MM</code> (24-Stunden)</li>
+                        </ul>
+                        <strong>Beispiel:</strong>
+                        <pre><code>Datum,Uhrzeit,Titel,Treffpunkt,Plätze,Kategorie\n2025-10-28,16:00,Welpenstunde,Welpenwiese,8,Orchid\n2025-10-29,18:30,L2 - Grundlagen,,6,LimeGreen</code></pre>
+                        <p><small>Wenn der Treffpunkt leer gelassen wird, wird "Hundeplatz Ascha" als Standard verwendet.</small></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="csv-file">CSV-Datei auswählen</label>
+                        <input type="file" id="csv-file" name="csv-file" accept=".csv" onChange=${handleFileChange} ref=${fileInputRef} />
+                    </div>
+
+                    ${error && html`<p class="error-message" style=${{whiteSpace: 'pre-wrap'}}>${error}</p>`}
+                    ${successMessage && html`<p class="success-message">${successMessage}</p>`}
+                </div>
+                <div class="modal-footer">
+                     <button type="button" class="btn btn-secondary" onClick=${onClose} disabled=${loading}>Schließen</button>
+                     <button type="button" class="btn btn-primary" onClick=${handleImportClick} disabled=${loading || !file}>
+                        ${loading ? 'Importiert...' : 'Importieren'}
+                     </button>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+
 const AdminPanel = () => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState(null);
     const [deletingEventId, setDeletingEventId] = useState(null);
     const [deleteError, setDeleteError] = useState('');
@@ -847,6 +1014,14 @@ const AdminPanel = () => {
         setEditingEvent(null);
         loadEvents();
     };
+    
+    const handleCsvImport = async (eventsToImport) => {
+        // Die Funktion wird an das Modal übergeben. Fehlerbehandlung findet im Modal statt.
+        // Bei Erfolg wird das Modal geschlossen und die Eventliste neu geladen.
+        await api.addEvents(eventsToImport);
+        setIsCsvModalOpen(false);
+        loadEvents();
+    };
 
     return html`
         <section class="admin-panel">
@@ -867,7 +1042,10 @@ const AdminPanel = () => {
                 <div class="event-management-view">
                     <div class="admin-header">
                         <h2>Event Verwaltung</h2>
-                        <button class="btn btn-primary" onClick=${handleAdd}>+ Neues Event</button>
+                        <div class="admin-header-actions">
+                            <button class="btn btn-secondary" onClick=${() => setIsCsvModalOpen(true)}>CSV Import</button>
+                            <button class="btn btn-primary" onClick=${handleAdd}>+ Neues Event</button>
+                        </div>
                     </div>
                      ${loading ? html`<div class="loading-state">Lade Events...</div>` : html`
                         <ul class="admin-event-list">
@@ -909,6 +1087,12 @@ const AdminPanel = () => {
                 onClose=${handleCancelDelete}
                 error=${deleteError}
                 loading=${deleteLoading}
+            />
+        `}
+        ${isCsvModalOpen && html`
+            <${CsvImportModal}
+                onImport=${handleCsvImport}
+                onClose=${() => setIsCsvModalOpen(false)}
             />
         `}
     `;

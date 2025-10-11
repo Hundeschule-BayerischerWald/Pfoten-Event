@@ -51,22 +51,26 @@ function createEmailHtml(title: string, customerName: string, bookingId: string,
 
   return `
     <!DOCTYPE html><html><head><style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; }
-    .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+    .content { padding: 20px; }
     .header { font-size: 24px; color: #28a745; margin: 0 0 10px; }
     .booking-id { background-color: #e9ecef; padding: 10px; border-radius: 6px; text-align: center; margin-top: 15px; }
     </style></head><body><div class="container">
-    <h1 class="header">${title}</h1><p>Hallo ${customerName},</p>
-    <p>vielen Dank! Hier ist die Zusammenfassung deiner Termine:</p>${eventsHtml}
-    <div class="booking-id">Deine Buchungsnummer lautet: <strong>${bookingId}</strong></div>
-    <div style="text-align: center; margin: 25px 0;">
-      <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-        Buchung verwalten
-      </a>
-    </div>
-    <p style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
-      Dies ist eine automatisch generierte E-Mail. Bitte antworte nicht darauf.
-    </p></div></body></html>
+    <img src="https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg" alt="Hundeschule Banner" style="max-width: 100%; height: auto; display: block;">
+    <div class="content">
+        <h1 class="header">${title}</h1><p>Hallo ${customerName},</p>
+        <p>vielen Dank! Hier ist die Zusammenfassung deiner Termine:</p>${eventsHtml}
+        <div class="booking-id">Deine Buchungsnummer lautet: <strong>${bookingId}</strong></div>
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+            Buchung verwalten
+          </a>
+        </div>
+        <p style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
+          Dies ist eine automatisch generierte E-Mail. Bitte antworte nicht darauf.
+        </p>
+    </div></div></body></html>
   `;
 }
 

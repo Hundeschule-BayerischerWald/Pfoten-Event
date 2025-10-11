@@ -502,6 +502,11 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 .admin-header .btn {
     width: auto;
 }
+.admin-header-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
 
 .admin-tabs {
     display: flex;
@@ -845,6 +850,37 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   width: auto;
   min-width: 120px;
 }
+/* CSV Import Modal Styles */
+.csv-instructions {
+    background-color: var(--disabled-color);
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+.csv-instructions ul {
+    padding-left: 20px;
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+}
+.csv-instructions pre {
+    background-color: #333;
+    color: #f4f4f4;
+    padding: 0.75rem;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+.csv-instructions code {
+    font-family: monospace;
+}
+input[type="file"] {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem;
+    width: 100%;
+}
+
 
 /* --- Footer & Admin Login --- */
 .app-footer {
