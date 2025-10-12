@@ -1,7 +1,8 @@
 {
   "name": "Eventanmeldung Hundeschule",
   "short_name": "Pfoten-Event",
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f4f1ee",
   "theme_color": "#007bff",
