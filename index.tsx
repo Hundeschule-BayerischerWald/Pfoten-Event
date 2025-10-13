@@ -533,7 +533,7 @@ const BookingPanel = ({ selectedEvents, customer, onCustomerChange, onSubmit, er
                     
                     <div class="form-group-checkbox">
                         <input type="checkbox" id="agb" name="agb" checked=${agreedAGB} onChange=${e => onAgreedAGBChange(e.target.checked)} required />
-                        <label for="agb">Ich habe die <a href="https://drive.google.com/file/d/1C9Mdt_DV5TwItH_K1ZSaMhzNrDukCHRm/view" target="_blank" rel="noopener noreferrer">AGB's</a> gelesen und akzeptiere sie.</label>
+                        <label for="agb">Ich habe die <a href="https://drive.google.com/file/d/19fR6ruOHCrSdr3QawbLiis47rUKNVzM9/view?usp=sharing" target="_blank" rel="noopener noreferrer">AGB</a> gelesen und akzeptiere sie.</label>
                     </div>
                     <div class="form-group-checkbox">
                         <input type="checkbox" id="privacy" name="privacy" checked=${agreedPrivacy} onChange=${e => onAgreedPrivacyChange(e.target.checked)} required />

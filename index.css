@@ -1094,6 +1094,14 @@ input[type="file"] {
     .modal-content {
       padding: 1.5rem;
     }
+    .modal-footer {
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+    }
+    .modal-footer .btn {
+        width: 100%;
+        min-width: unset;
+    }
     .modal-header h2 {
       font-size: 1.25rem;
     }
