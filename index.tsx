@@ -1731,7 +1731,7 @@ const App = () => {
 
     return html`
         <header class="booking-tool-header">
-            <h1>Eventanmeldung Hundeschule</h1>
+            <h1>Pfoten-Event</h1>
             <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
             <nav class="main-nav">
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Event buchen</button>
