@@ -1734,7 +1734,7 @@ const App = () => {
             <h1>Pfoten-Event</h1>
             <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
             <nav class="main-nav">
-                <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Event buchen</button>
+                <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Buchungsansicht</button>
                 <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('manage')}>Buchung verwalten</button>
                 ${session && html`
                     <button class=${`btn ${view === 'admin' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('admin')}>Mitarbeiter-Panel</button>
