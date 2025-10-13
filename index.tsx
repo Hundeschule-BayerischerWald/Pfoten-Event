@@ -515,19 +515,19 @@ const BookingPanel = ({ selectedEvents, customer, onCustomerChange, onSubmit, er
 
                     <p class="legal-notice">Hiermit melde ich mich rechtsverbindlich für die von mir ausgewählten Unterrichts-Stunden an.</p>
                     <div class="form-group">
-                        <label for="name">Name</label>
+                        <label for="name">Name *</label>
                         <input type="text" id="name" name="name" value=${customer.name} onInput=${handleInput} required />
                     </div>
                     <div class="form-group">
-                        <label for="dogName">Name des Hundes</label>
+                        <label for="dogName">Name des Hundes *</label>
                         <input type="text" id="dogName" name="dog_name" value=${customer.dog_name} onInput=${handleInput} required />
                     </div>
                      <div class="form-group">
-                        <label for="email">E-Mail</label>
+                        <label for="email">E-Mail *</label>
                         <input type="email" id="email" name="email" value=${customer.email} onInput=${handleInput} required />
                     </div>
                     <div class="form-group">
-                        <label for="phone">Telefon</label>
+                        <label for="phone">Telefon *</label>
                         <input type="tel" id="phone" name="phone" value=${customer.phone} onInput=${handleInput} required />
                     </div>
                     
@@ -1340,8 +1340,8 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
         return html`
             <section class="booking-lookup-form">
                 <form onSubmit=${handleLookupSubmit}>
-                    <h2>Buchung verwalten</h2>
-                    <p>Gib deine Buchungsnummer ein, um deine Termine zu bearbeiten.</p>
+                    <h2>Meine Buchungen verwalten</h2>
+                    <p>Gib eine deiner Buchungsnummern ein, um deine Termine zu bearbeiten.</p>
                     <div class="form-group">
                         <label for="bookingId">Buchungsnummer</label>
                         <input type="text" id="bookingId" name="bookingId" value=${bookingIdInput} onInput=${e => setBookingIdInput(e.target.value)} required placeholder="z.B. Bello-12345" />
@@ -1735,7 +1735,7 @@ const App = () => {
             <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
             <nav class="main-nav">
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Buchungsansicht</button>
-                <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('manage')}>Buchung verwalten</button>
+                <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('manage')}>Meine Buchungen verwalten</button>
                 ${session && html`
                     <button class=${`btn ${view === 'admin' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('admin')}>Mitarbeiter-Panel</button>
                     <button class="btn btn-secondary" onClick=${handleLogout}>Logout</button>

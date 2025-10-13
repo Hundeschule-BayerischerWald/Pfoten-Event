@@ -49,7 +49,7 @@ function createUpdateEmailHtml(customerName: string, event: any, manageUrl: stri
         <p>Deine Anmeldung für dieses Event wurde automatisch auf die neuen Daten übertragen.</p>
         <div style="text-align: center; margin: 25px 0;">
           <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 12px; font-weight: bold; display: inline-block;">
-            Buchung verwalten
+            Meine Buchungen verwalten
           </a>
         </div>
         <p style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
