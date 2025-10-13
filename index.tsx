@@ -314,6 +314,23 @@ const api = {
             throw new Error("Event konnte nicht gelöscht werden.");
         }
     },
+    cleanupOldEvents: async (): Promise<{ deletedCount: number }> => {
+        const { data, error } = await supabase.functions.invoke('cleanup-old-events');
+        
+        if (error) {
+            console.error("Error invoking cleanup function:", error);
+            const detailedMessage = error.message || "Unbekannter Fehler.";
+            throw new Error(`Fehler beim Aufräumen der Events: ${detailedMessage}`);
+        }
+        
+        // Prüfe auch auf einen anwendungsseitigen Fehler, der von der Funktion zurückgegeben wird
+        if (data && data.success === false) {
+             console.error("Cleanup function returned a failure status:", data.details);
+             throw new Error(`Die Aufräumfunktion hat einen Fehler gemeldet: ${data.details || 'Keine Details.'}`);
+        }
+        
+        return data;
+    },
 };
 
 // --- HELPER FUNKTIONEN ---
@@ -961,6 +978,9 @@ const AdminPanel = () => {
     const [deleteError, setDeleteError] = useState('');
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'events'
+    const [cleanupLoading, setCleanupLoading] = useState(false);
+    const [cleanupMessage, setCleanupMessage] = useState({ text: '', type: '' });
+    const [isConfirmingCleanup, setIsConfirmingCleanup] = useState(false);
 
     const loadEvents = async () => {
         setLoading(true);
@@ -1017,6 +1037,27 @@ const AdminPanel = () => {
             setDeleteLoading(false);
         }
     };
+    
+    const handleStartCleanup = () => {
+        setCleanupMessage({ text: '', type: '' });
+        setIsConfirmingCleanup(true);
+    };
+    
+    const handleConfirmCleanup = async () => {
+        setIsConfirmingCleanup(false);
+        setCleanupLoading(true);
+        try {
+            const result = await api.cleanupOldEvents();
+            setCleanupMessage({ 
+                text: `${result.deletedCount ?? 0} vergangene(s) Event(s) wurde(n) erfolgreich entfernt.`,
+                type: 'success'
+            });
+        } catch (err) {
+            setCleanupMessage({ text: `Fehler: ${err.message}`, type: 'error' });
+        } finally {
+            setCleanupLoading(false);
+        }
+    };
 
     const handleSave = async (eventData) => {
         const finalEventData = { ...eventData };
@@ -1064,8 +1105,35 @@ const AdminPanel = () => {
                     <div class="admin-header">
                         <h2>Event Verwaltung</h2>
                         <div class="admin-header-actions">
-                            <button class="btn btn-secondary" onClick=${() => setIsCsvModalOpen(true)}>CSV Import</button>
                             <button class="btn btn-primary" onClick=${handleAdd}>+ Neues Event</button>
+                            <button class="btn btn-secondary" onClick=${() => setIsCsvModalOpen(true)}>CSV Import</button>
+                            <div class="cleanup-container">
+                                <div class="cleanup-control">
+                                    ${cleanupLoading ? html`
+                                        <div class="admin-cleanup-progress progress-indicator">
+                                            <span class="progress-indicator-label">Lösche alte Events...</span>
+                                            <div class="progress-bar-container">
+                                                <div class="progress-bar"></div>
+                                            </div>
+                                        </div>
+                                    ` : isConfirmingCleanup ? html`
+                                        <div class="confirm-cleanup-actions">
+                                            <span>Sicher?</span>
+                                            <button class="btn btn-secondary btn-small" onClick=${() => setIsConfirmingCleanup(false)}>Abbrechen</button>
+                                            <button class="btn btn-danger btn-small" onClick=${handleConfirmCleanup}>Ja, löschen</button>
+                                        </div>
+                                    ` : html`
+                                        <button class="btn btn-danger" onClick=${handleStartCleanup}>
+                                            Alte Events löschen
+                                        </button>
+                                    `}
+                                </div>
+                                ${cleanupMessage.text && html`
+                                    <p class="cleanup-message ${cleanupMessage.type === 'error' ? 'error-message' : 'success-message'}">
+                                        ${cleanupMessage.text}
+                                    </p>
+                                `}
+                            </div>
                         </div>
                     </div>
                      ${loading ? html`<div class="loading-state">Lade Events...</div>` : html`

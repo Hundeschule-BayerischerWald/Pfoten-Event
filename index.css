@@ -466,6 +466,12 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     border-color: var(--disabled-color);
 }
 
+.btn-small {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
 .error-message, .success-message {
     color: var(--error-color);
     background-color: #f8d7da;
@@ -548,6 +554,8 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 .admin-header-actions {
     display: flex;
     gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 
@@ -945,6 +953,94 @@ input[type="file"] {
 
 .admin-login-btn:hover {
     color: var(--primary-color);
+}
+
+/* --- Cleanup Action Styles --- */
+.cleanup-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.cleanup-control {
+    min-height: 38px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.cleanup-control .btn {
+    width: 100%;
+}
+
+.confirm-cleanup-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+}
+.confirm-cleanup-actions span {
+    color: var(--secondary-color);
+}
+
+.cleanup-message {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem !important;
+    margin: 0 !important;
+    text-align: center;
+    width: 100%;
+    max-width: 250px;
+    border-radius: 6px !important;
+}
+
+/* --- Progress Bar --- */
+.progress-indicator {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.progress-indicator-label {
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+    text-align: center;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 8px;
+    background-color: var(--disabled-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 100%;
+    background-color: var(--primary-color);
+    border-radius: 4px;
+    animation: indeterminate-progress 1.5s infinite linear;
+    transform-origin: 0% 50%;
+}
+
+.admin-cleanup-progress {
+    width: 180px;
+    justify-content: center;
+}
+
+
+@keyframes indeterminate-progress {
+    0% {
+        transform: translateX(-100%) scaleX(0.1);
+    }
+    50% {
+        transform: translateX(0) scaleX(0.8);
+    }
+    100% {
+        transform: translateX(100%) scaleX(0.1);
+    }
 }
 
 
