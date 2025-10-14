@@ -1731,8 +1731,13 @@ const App = () => {
 
     return html`
         <header class="booking-tool-header">
-            <h1>Pfoten-Event</h1>
-            <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
+            <div class="header-content">
+                <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Pfoten-Event Logo" class="header-logo" />
+                <div class="header-text">
+                    <h1>Pfoten-Event</h1>
+                    <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
+                </div>
+            </div>
             <nav class="main-nav">
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Buchungsansicht</button>
                 <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('manage')}>Meine Buchungen verwalten</button>

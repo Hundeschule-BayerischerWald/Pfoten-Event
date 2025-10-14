@@ -7,7 +7,7 @@ import { Buffer } from "https://deno.land/std@0.140.0/node/buffer.ts";
 declare const Deno: any;
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
+const FROM_EMAIL = 'Hundeschule <anmeldungen@hs-bw.com>';
 const EMAIL_HEADER_IMAGE_URL = 'https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg';
 
 // WICHTIG: Das PDF muss in einem öffentlichen Supabase Storage Bucket namens "assets" liegen.
@@ -53,7 +53,7 @@ function createUpdateEmailHtml(customerName: string, event: any, manageUrl: stri
           </a>
         </div>
         <p style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
-          Dies ist eine automatisch generierte E-Mail. Bei Fragen antworte bitte auf anmeldungen@pfotencard.hs-bw.com.
+          Dies ist eine automatisch generierte E-Mail. Eine Antwort auf diese Nachricht kann nicht zugestellt werden.<br>Für Rückfragen kontaktiere bitte den Support unter anmeldungen@hs-bw.com
         </p>
     </div></div></body></html>
   `;
@@ -109,7 +109,7 @@ serve(async (req) => {
             to: customer.email,
             subject: 'Wichtige Änderung bei deiner Event-Buchung',
             html: htmlContent,
-            reply_to: 'anmeldungen@pfotencard.hs-bw.com'
+            reply_to: 'anmeldungen@hs-bw.com'
         };
         
         if (pdfAttachment) {
