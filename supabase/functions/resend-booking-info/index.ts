@@ -41,10 +41,10 @@ function createRecoveryEmailHtml(customerName: string, bookingIds: string[], man
         </style></head><body><div class="container">
         <img src="${EMAIL_HEADER_IMAGE_URL}" alt="Hundeschule Banner" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
         <div class="content">
-            <h1 class="header">Deine Buchungsnummern</h1><p>Hallo ${customerName},</p>
-            <p>du hast deine Buchungsnummern bei uns angefordert. Hier sind alle Nummern, die unter deiner E-Mail-Adresse registriert sind:</p>
+            <h1 class="header">Deine Buchungsnummer</h1><p>Hallo ${customerName},</p>
+            <p>du hast deine Buchungsnummer bei uns angefordert. Hier ist deine Nummer, die unter deiner E-Mail-Adresse registriert ist:</p>
             <ul>${bookingsHtml}</ul>
-            <p style="margin-top: 20px;">Du kannst diese Nummern nun verwenden, um deine Buchungen zu verwalten.</p>
+            <p style="margin-top: 20px;">Du kannst diese Nummer nun verwenden, um deine Buchung zu verwalten.</p>
             <div style="text-align: center; margin: 25px 0;">
               <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 12px; font-weight: bold; display: inline-block;">
                 Zur Buchungsverwaltung
@@ -145,7 +145,7 @@ serve(async (req) => {
         const emailPayload: any = {
             from: FROM_EMAIL,
             to: email,
-            subject: "Deine angeforderten Buchungsnummern",
+            subject: "Deine angeforderte Buchungsnummer",
             html: htmlContent,
             reply_to: REPLY_TO_EMAIL
         };
