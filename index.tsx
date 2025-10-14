@@ -537,7 +537,7 @@ const BookingPanel = ({ selectedEvents, customer, onCustomerChange, onSubmit, er
                     </div>
                     <div class="form-group-checkbox">
                         <input type="checkbox" id="privacy" name="privacy" checked=${agreedPrivacy} onChange=${e => onAgreedPrivacyChange(e.target.checked)} required />
-                        <label for="privacy">Ich habe die <a href="https://hs-bw.com/datenschutzerklaerung/" target="_blank" rel="noopener noreferrer">Datenschutzerklärung</a> gelesen und akzeptiere sie.</label>
+                        <label for="privacy">Ich habe die <a href="/datenschutz" target="_blank" rel="noopener noreferrer">Datenschutzerklärung</a> gelesen und akzeptiere sie.</label>
                     </div>
 
                     ${error && html`<p class="error-message">${error}</p>`}

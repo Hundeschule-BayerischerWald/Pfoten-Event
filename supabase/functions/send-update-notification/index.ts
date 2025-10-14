@@ -6,8 +6,10 @@ import { Buffer } from "https://deno.land/std@0.140.0/node/buffer.ts";
 // Fix for "Cannot find name 'Deno'" error in non-Deno environments.
 declare const Deno: any;
 
+// --- KONFIGURATION ---
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const FROM_EMAIL = 'Hundeschule <anmeldungen@hs-bw.com>';
+const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
+const REPLY_TO_EMAIL = 'info@hs-bw.com';
 const EMAIL_HEADER_IMAGE_URL = 'https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg';
 
 // WICHTIG: Das PDF muss in einem öffentlichen Supabase Storage Bucket namens "assets" liegen.
@@ -53,7 +55,10 @@ function createUpdateEmailHtml(customerName: string, event: any, manageUrl: stri
           </a>
         </div>
         <p style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
-          Dies ist eine automatisch generierte E-Mail. Eine Antwort auf diese Nachricht kann nicht zugestellt werden.<br>Für Rückfragen kontaktiere bitte den Support unter anmeldungen@hs-bw.com
+          Dies ist eine automatisch generierte E-Mail. Bitte antworte nicht direkt auf diese Nachricht.<br><br>
+          Bei Fragen oder Anliegen wende dich bitte an unser Team unter ${REPLY_TO_EMAIL}.<br><br>
+          Vielen Dank und bis bald,<br>
+          dein Team der Hundeschule Bayerischer Wald
         </p>
     </div></div></body></html>
   `;
@@ -109,7 +114,7 @@ serve(async (req) => {
             to: customer.email,
             subject: 'Wichtige Änderung bei deiner Event-Buchung',
             html: htmlContent,
-            reply_to: 'anmeldungen@hs-bw.com'
+            reply_to: REPLY_TO_EMAIL
         };
         
         if (pdfAttachment) {

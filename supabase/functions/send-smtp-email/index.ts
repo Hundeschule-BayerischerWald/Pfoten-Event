@@ -8,7 +8,7 @@
 // 2. Erstelle einen API-Schlüssel.
 // 3. Füge den API-Schlüssel als Secret in deinem Supabase-Projekt hinzu:
 //    Name: RESEND_API_KEY, Wert: re_...
-// 4. VERIFIZIERE DEINE DOMAIN (z.B. hs-bw.com) IN DEINEM RESEND ACCOUNT.
+// 4. VERIFIZIERE DEINE DOMAIN (z.B. deine-domain.com) IN DEINEM RESEND ACCOUNT.
 // 5. Lade das Info-PDF in einen öffentlichen Storage-Bucket "assets" hoch.
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
@@ -17,8 +17,10 @@ import { Buffer } from "https://deno.land/std@0.140.0/node/buffer.ts";
 // Fix for "Cannot find name 'Deno'" error in non-Deno environments.
 declare const Deno: any;
 
+// --- KONFIGURATION ---
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const FROM_EMAIL = 'Hundeschule <anmeldungen@hs-bw.com>';
+const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
+const REPLY_TO_EMAIL = 'info@hs-bw.com';
 const EMAIL_HEADER_IMAGE_URL = 'https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg';
 
 // WICHTIG: Das PDF muss in einem öffentlichen Supabase Storage Bucket namens "assets" liegen.
@@ -53,7 +55,7 @@ function createEmailHtml(title: string, customerName: string, bookingId: string,
 
   const introductoryText = type === 'new-booking'
     ? `<p>Hallo ${customerName},</p><p>vielen Dank! Hier ist die Zusammenfassung deiner Termine:</p>`
-    : `<p>Hier ist die Zusammenfassung deiner Termine:</p>`;
+    : `<p>Hallo ${customerName},</p><p>deine Buchung wurde soeben aktualisiert. Hier ist die neue Zusammenfassung deiner Termine:</p>`;
 
   return `
     <!DOCTYPE html><html><head><style>
@@ -73,7 +75,10 @@ function createEmailHtml(title: string, customerName: string, bookingId: string,
           </a>
         </div>
         <p style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
-          Dies ist eine automatisch generierte E-Mail. Eine Antwort auf diese Nachricht kann nicht zugestellt werden.<br>Für Rückfragen kontaktiere bitte den Support unter anmeldungen@hs-bw.com
+          Dies ist eine automatisch generierte E-Mail. Bitte antworte nicht direkt auf diese Nachricht.<br><br>
+          Bei Fragen oder Anliegen wende dich bitte an unser Team unter ${REPLY_TO_EMAIL}.<br><br>
+          Vielen Dank und bis bald,<br>
+          dein Team der Hundeschule Bayerischer Wald
         </p>
     </div></div></body></html>
   `;
@@ -124,7 +129,7 @@ serve(async (req) => {
         to: customerEmail,
         subject: subject,
         html: htmlContent,
-        reply_to: 'anmeldungen@hs-bw.com'
+        reply_to: REPLY_TO_EMAIL
     };
     
     if (pdfAttachment) {
