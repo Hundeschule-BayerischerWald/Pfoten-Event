@@ -1,7 +1,11 @@
 // supabase/functions/send-update-notification/index.ts
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
-import { Buffer } from "https://deno.land/std@0.140.0/node/buffer.ts";
+
+// HINWEIS: Der PDF-Anhang wurde aus dieser Funktion entfernt.
+// Die Resend-API unterstützt keine Anhänge beim Batch-Versand von E-Mails,
+// was zu einem Fehler (422) führte. Diese Funktion versendet nun Benachrichtigungen
+// im Stapel ohne Anhang, um die Zuverlässigkeit zu gewährleisten.
 
 // Fix for "Cannot find name 'Deno'" error in non-Deno environments.
 declare const Deno: any;
@@ -12,8 +16,6 @@ const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
 const REPLY_TO_EMAIL = 'info@hs-bw.com';
 const EMAIL_HEADER_IMAGE_URL = 'https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg';
 
-// WICHTIG: Das PDF muss in einem öffentlichen Supabase Storage Bucket namens "assets" liegen.
-const PDF_ATTACHMENT_URL = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/assets/Wichtige-Infos-zur-Anmeldung.pdf`;
 
 const CATEGORY_COLORS = {
     "Orchid": { bg: "Orchid", text: "#1a1a1a" },
@@ -35,7 +37,7 @@ function createUpdateEmailHtml(customerName: string, event: any, manageUrl: stri
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
     .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
     .content { padding: 20px; }
-    .header { font-size: 24px; color: #ffc107; margin: 0 0 10px; }
+    .header { font-size: 24px; color: Tomato; margin: 0 0 10px; }
     </style></head><body><div class="container">
     <img src="${EMAIL_HEADER_IMAGE_URL}" alt="Hundeschule Banner" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
     <div class="content">
@@ -48,7 +50,7 @@ function createUpdateEmailHtml(customerName: string, event: any, manageUrl: stri
             <strong>Neuer Ort:</strong> ${event.location}
           </div>
         </div>
-        <p>Deine Anmeldung für dieses Event wurde automatisch auf die neuen Daten übertragen.</p>
+        <p>Deine Anmeldung für dieses Event wurde automatisch auf die neuen Daten übertragen. Alle wichtigen Dokumente (z.B. AGB, Infos zur Anmeldung) hast du bereits mit deiner ursprünglichen Buchungsbestätigung erhalten.</p>
         <div style="text-align: center; margin: 25px 0;">
           <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 12px; font-weight: bold; display: inline-block;">
             Meine Buchungen verwalten
@@ -78,26 +80,16 @@ serve(async (req) => {
     const { participants, event } = await req.json();
     console.log(`[send-update-notification] Processing request for ${participants.length} participants for event "${event.title}".`);
 
-    // Fetch PDF attachment once before the loop
-    let pdfAttachment;
-    try {
-        console.log(`[send-update-notification] Fetching PDF attachment from: ${PDF_ATTACHMENT_URL}`);
-        const pdfResponse = await fetch(PDF_ATTACHMENT_URL);
-        if (pdfResponse.ok) {
-            const pdfArrayBuffer = await pdfResponse.arrayBuffer();
-            const pdfBase64 = Buffer.from(pdfArrayBuffer).toString('base64');
-            pdfAttachment = {
-                filename: 'Wichtige-Infos-zur-Anmeldung.pdf',
-                content: pdfBase64,
-            };
-            console.log("[send-update-notification] Successfully fetched and encoded PDF attachment.");
-        } else {
-            console.warn(`[send-update-notification] Failed to fetch PDF. Status: ${pdfResponse.status}. Email will be sent without attachment.`);
-        }
-    } catch (pdfError) {
-        console.error("[send-update-notification] Error fetching or processing PDF attachment:", pdfError.message);
+    if (!participants || participants.length === 0) {
+        console.log("[send-update-notification] No participants to notify. Exiting.");
+        return new Response(JSON.stringify({ message: 'No participants to notify.' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
     }
 
+    // Create a batch of emails to send
+    const emailBatch = [];
     for (const participant of participants) {
         const { customer, bookingId } = participant;
 
@@ -109,7 +101,7 @@ serve(async (req) => {
         const manageUrl = `https://pfoten-event.vercel.app/?view=manage&bookingId=${bookingId}`;
         const htmlContent = createUpdateEmailHtml(customer.name, event, manageUrl);
 
-        const emailPayload: any = {
+        const emailPayload = {
             from: FROM_EMAIL,
             to: customer.email,
             subject: 'Wichtige Änderung bei deiner Event-Buchung',
@@ -117,26 +109,30 @@ serve(async (req) => {
             reply_to: REPLY_TO_EMAIL
         };
         
-        if (pdfAttachment) {
-            emailPayload.attachments = [pdfAttachment];
-        }
-        
-        console.log(`[send-update-notification] Attempting to send notification to ${customer.email} via Resend API.`);
-        const resendResponse = await fetch('https://api.resend.com/emails', {
+        emailBatch.push(emailPayload);
+    }
+    
+    // Send the entire batch in one API call
+    if (emailBatch.length > 0) {
+        console.log(`[send-update-notification] Attempting to send batch of ${emailBatch.length} notifications via Resend API.`);
+        const resendResponse = await fetch('https://api.resend.com/emails/batch', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${RESEND_API_KEY}`,
             },
-            body: JSON.stringify(emailPayload),
+            body: JSON.stringify(emailBatch),
         });
 
         const responseData = await resendResponse.json();
         if (!resendResponse.ok) {
-            console.error(`[send-update-notification] Resend API Error for ${customer.email}:`, responseData);
+            // Log the error but don't throw, as the whole process shouldn't fail if the email fails.
+            console.error(`[send-update-notification] Resend API Batch Error:`, responseData);
         } else {
-            console.log(`[send-update-notification] Notification sent successfully to ${customer.email}. ID: ${responseData.id}`);
+            console.log(`[send-update-notification] Batch notifications sent successfully. Resend ID: ${responseData.data?.id}`);
         }
+    } else {
+        console.log("[send-update-notification] No valid participants found to notify.");
     }
     
     return new Response(JSON.stringify({ message: 'Notifications processed.' }), {
