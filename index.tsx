@@ -1692,6 +1692,19 @@ const App = () => {
     const [initialBookingId, setInitialBookingId] = useState<string | null>(null);
 
     useEffect(() => {
+        // Service Worker Registration for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+        
         // Handle URL parameters for direct linking
         const params = new URLSearchParams(window.location.search);
         const viewParam = params.get('view');
