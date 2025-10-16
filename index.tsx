@@ -1789,7 +1789,7 @@ const App = () => {
                 >
                     <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Pfoten-Event Logo" class="header-logo" />
                     ${installPromptEvent && html`
-                        <span class="install-prompt-text">Installieren</span>
+                        <span class="install-prompt-text">App installieren</span>
                     `}
                 </div>
                 <div class="header-text">
