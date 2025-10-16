@@ -9,12 +9,12 @@
   "description": "Buchungstool für Events der Hundeschule.",
   "icons": [
     {
-      "src": "/logo-192.png",
+      "src": "https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/logo-512.png",
+      "src": "https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png",
       "sizes": "512x512",
       "type": "image/png"
     }

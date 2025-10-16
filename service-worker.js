@@ -6,9 +6,6 @@ const urlsToCache = [
   '/index.html',
   '/index.css',
   '/manifest.json',
-  '/logo.png',
-  '/logo-192.png',
-  '/logo-512.png',
   'https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png'
 ];
 
