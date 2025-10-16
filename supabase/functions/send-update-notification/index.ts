@@ -2,9 +2,6 @@
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-// FIX: Replaced the non-existent JSR package with the correct @negrel/webpush package.
-import * as webpush from "jsr:@negrel/webpush@^0.5.0";
-
 
 // Fix for "Cannot find name 'Deno'" error in non-Deno environments.
 declare const Deno: any;
@@ -14,11 +11,6 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
 const REPLY_TO_EMAIL = 'info@hs-bw.com';
 const EMAIL_HEADER_IMAGE_URL = 'https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg';
-
-const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY');
-// This public key must match the one in index.tsx
-const VAPID_PUBLIC_KEY = 'BGT_xTDYSo0h65L0nsgJq-53M8Fwxm2nVTNV4qE4uhhPGIq5CcrwD3yAydoXv_YQz3fB1i3d2-a7x95nJVEV0r8';
-const VAPID_SUBJECT = `mailto:${REPLY_TO_EMAIL}`;
 
 
 const CATEGORY_COLORS = {
@@ -119,70 +111,6 @@ async function sendEmailNotifications(participants: any[], event: any) {
     }
 }
 
-async function sendPushNotifications(participants: any[], event: any) {
-    if (!VAPID_PRIVATE_KEY) {
-        console.warn("[send-update-notification] VAPID_PRIVATE_KEY not set. Skipping push notifications.");
-        return;
-    }
-
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-    
-    const customerIds = participants.map(p => p.customer?.id).filter(Boolean);
-    if (customerIds.length === 0) return;
-
-    const { data: subscriptions, error: dbError } = await supabaseAdmin
-        .from('push_subscriptions')
-        .select('subscription_payload, endpoint')
-        .in('customer_id', customerIds);
-    
-    if (dbError) {
-        console.error("[send-update-notification] Error fetching push subscriptions:", dbError.message);
-        return;
-    }
-
-    if (!subscriptions || subscriptions.length === 0) {
-        console.log("[send-update-notification] No push subscriptions found for participants.");
-        return;
-    }
-
-    console.log(`[send-update-notification] Found ${subscriptions.length} push subscriptions to notify.`);
-    
-    const vapidOptions = {
-        vapidDetails: {
-            subject: VAPID_SUBJECT,
-            publicKey: VAPID_PUBLIC_KEY,
-            privateKey: VAPID_PRIVATE_KEY,
-        },
-    };
-
-    const notificationPayload = JSON.stringify({
-        title: `Update für: ${event.title}`,
-        body: `Neuer Termin: ${event.date} am Ort: ${event.location}`,
-        url: `https://pfoten-event.vercel.app/?view=manage&bookingId=${participants[0].bookingId}`
-    });
-
-    const promises = subscriptions.map(async (sub) => {
-        const pushSubscription = sub.subscription_payload as webpush.PushSubscription;
-        try {
-            await webpush.sendNotification(pushSubscription, notificationPayload, vapidOptions);
-        } catch (err) {
-            const errorResponse = err as { statusCode: number };
-            console.error(`[send-update-notification] Failed to send push to ${sub.endpoint}. Status: ${errorResponse.statusCode}`);
-            // If subscription is expired (410) or gone (404), delete it from DB.
-            if (errorResponse.statusCode === 410 || errorResponse.statusCode === 404) {
-                console.log(`[send-update-notification] Deleting expired subscription: ${sub.endpoint}`);
-                await supabaseAdmin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
-            }
-        }
-    });
-    
-    await Promise.all(promises);
-    console.log(`[send-update-notification] Push notifications dispatched.`);
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }});
@@ -199,11 +127,8 @@ serve(async (req) => {
         });
     }
 
-    // Run both notification types in parallel, but don't let one fail the other.
-    await Promise.all([
-        sendEmailNotifications(participants, event),
-        sendPushNotifications(participants, event)
-    ]);
+    // Send email notifications
+    await sendEmailNotifications(participants, event);
     
     return new Response(JSON.stringify({ message: 'Notifications processed.' }), {
       status: 200,
