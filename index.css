@@ -62,9 +62,9 @@ body {
 .header-logo {
     width: 80px;
     height: 80px;
-    flex-shrink: 0;
     border-radius: 12px;
     box-shadow: var(--box-shadow);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .header-text {
@@ -495,22 +495,6 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     font-size: 0.8rem;
     font-weight: 500;
 }
-
-/* Install Button Specific Style */
-.btn-install {
-    background-color: var(--success-color);
-    color: white;
-}
-.btn-install:hover {
-    background-color: #218838;
-}
-.btn-install::before {
-    content: '↓';
-    display: inline-block;
-    margin-right: 0.5rem;
-    font-weight: bold;
-}
-
 
 .error-message, .success-message {
     color: var(--error-color);
@@ -1055,6 +1039,60 @@ input[type="file"] {
     max-width: 250px;
     border-radius: 6px !important;
 }
+
+/* --- PWA Install Prompt Animation --- */
+@keyframes pulse-bounce {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 8px 15px rgba(0, 123, 255, 0.2);
+  }
+}
+
+@keyframes fade-in-pop {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 5px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+.logo-container {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.logo-container.installable {
+    cursor: pointer;
+}
+
+.logo-container.installable .header-logo {
+    animation: pulse-bounce 2s infinite ease-in-out;
+}
+
+.install-prompt-text {
+    position: absolute;
+    bottom: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    animation: fade-in-pop 0.4s ease-out forwards;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+}
+
 
 /* --- Progress Bar --- */
 .progress-indicator {

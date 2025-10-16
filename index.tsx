@@ -1782,7 +1782,16 @@ const App = () => {
     return html`
         <header class="booking-tool-header">
             <div class="header-content">
-                <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Pfoten-Event Logo" class="header-logo" />
+                <div 
+                    class=${`logo-container ${installPromptEvent ? 'installable' : ''}`}
+                    onClick=${installPromptEvent ? handleInstallClick : null}
+                    title=${installPromptEvent ? 'App auf diesem Gerät installieren' : ''}
+                >
+                    <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Pfoten-Event Logo" class="header-logo" />
+                    ${installPromptEvent && html`
+                        <span class="install-prompt-text">Installieren</span>
+                    `}
+                </div>
                 <div class="header-text">
                     <h1>Pfoten-Event</h1>
                     <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
@@ -1794,9 +1803,6 @@ const App = () => {
                 ${session && html`
                     <button class=${`btn ${view === 'admin' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('admin')}>Mitarbeiter-Panel</button>
                     <button class="btn btn-secondary" onClick=${handleLogout}>Logout</button>
-                `}
-                ${installPromptEvent && html`
-                    <button class="btn btn-install" onClick=${handleInstallClick}>App installieren</button>
                 `}
             </nav>
         </header>
