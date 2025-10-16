@@ -1690,6 +1690,7 @@ const App = () => {
     const [userRole, setUserRole] = useState<string | null>(null);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [initialBookingId, setInitialBookingId] = useState<string | null>(null);
+    const [installPromptEvent, setInstallPromptEvent] = useState(null);
 
     useEffect(() => {
         // Service Worker Registration for PWA
@@ -1704,6 +1705,25 @@ const App = () => {
                     });
             });
         }
+        
+        // --- PWA Installation Prompt Handling ---
+        const handleBeforeInstallPrompt = (e) => {
+            // Prevent the mini-infobar from appearing on mobile.
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            setInstallPromptEvent(e);
+            console.log("'beforeinstallprompt' event was fired.");
+        };
+
+        const handleAppInstalled = () => {
+            console.log('PWA was installed');
+            // Hide the install button as it's no longer needed
+            setInstallPromptEvent(null);
+        };
+
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.addEventListener('appinstalled', handleAppInstalled);
+
         
         // Handle URL parameters for direct linking
         const params = new URLSearchParams(window.location.search);
@@ -1732,7 +1752,11 @@ const App = () => {
         });
 
         // Cleanup subscription on component unmount
-        return () => subscription.unsubscribe();
+        return () => {
+            subscription.unsubscribe();
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+            window.removeEventListener('appinstalled', handleAppInstalled);
+        };
     }, []);
 
 
@@ -1740,6 +1764,19 @@ const App = () => {
         await supabase.auth.signOut();
         setUserRole(null);
         setView('booking');
+    };
+
+    const handleInstallClick = async () => {
+        if (!installPromptEvent) {
+            return;
+        }
+        // Show the native installation prompt
+        installPromptEvent.prompt();
+        // Wait for the user to respond to the prompt
+        const { outcome } = await installPromptEvent.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        // We've used the prompt, and can't use it again. Clear it.
+        setInstallPromptEvent(null);
     };
 
     return html`
@@ -1757,6 +1794,9 @@ const App = () => {
                 ${session && html`
                     <button class=${`btn ${view === 'admin' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('admin')}>Mitarbeiter-Panel</button>
                     <button class="btn btn-secondary" onClick=${handleLogout}>Logout</button>
+                `}
+                ${installPromptEvent && html`
+                    <button class="btn btn-install" onClick=${handleInstallClick}>App installieren</button>
                 `}
             </nav>
         </header>
