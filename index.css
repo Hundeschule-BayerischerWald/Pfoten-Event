@@ -827,6 +827,28 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     width: auto;
 }
 
+/* --- Notification Styles --- */
+.notification-prompt {
+    background-color: var(--disabled-color);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin: 1.5rem 0;
+    text-align: center;
+}
+.notification-prompt p {
+    margin: 0 0 1rem 0;
+}
+.notification-prompt .btn {
+    width: auto;
+}
+
+.notification-status {
+    margin: 1.5rem 0;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    text-align: center;
+}
+
 /* --- Modal Styles --- */
 .modal-overlay {
     position: fixed;

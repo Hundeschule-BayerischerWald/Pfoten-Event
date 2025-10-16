@@ -1,11 +1,10 @@
 // supabase/functions/send-update-notification/index.ts
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// FIX: Replaced the non-existent JSR package with the correct @negrel/webpush package.
+import * as webpush from "jsr:@negrel/webpush@^0.5.0";
 
-// HINWEIS: Der PDF-Anhang wurde aus dieser Funktion entfernt.
-// Die Resend-API unterstützt keine Anhänge beim Batch-Versand von E-Mails,
-// was zu einem Fehler (422) führte. Diese Funktion versendet nun Benachrichtigungen
-// im Stapel ohne Anhang, um die Zuverlässigkeit zu gewährleisten.
 
 // Fix for "Cannot find name 'Deno'" error in non-Deno environments.
 declare const Deno: any;
@@ -15,6 +14,11 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
 const REPLY_TO_EMAIL = 'info@hs-bw.com';
 const EMAIL_HEADER_IMAGE_URL = 'https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg';
+
+const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY');
+// This public key must match the one in index.tsx
+const VAPID_PUBLIC_KEY = 'BGT_xTDYSo0h65L0nsgJq-53M8Fwxm2nVTNV4qE4uhhPGIq5CcrwD3yAydoXv_YQz3fB1i3d2-a7x95nJVEV0r8';
+const VAPID_SUBJECT = `mailto:${REPLY_TO_EMAIL}`;
 
 
 const CATEGORY_COLORS = {
@@ -66,74 +70,140 @@ function createUpdateEmailHtml(customerName: string, event: any, manageUrl: stri
   `;
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }});
-  }
-  
-  try {
+async function sendEmailNotifications(participants: any[], event: any) {
     if (!RESEND_API_KEY) {
-        console.error("[send-update-notification] FATAL: RESEND_API_KEY secret is not set.");
-        throw new Error("Serverkonfigurationsfehler: E-Mail-Dienst nicht eingerichtet.");
+        console.error("[send-update-notification] RESEND_API_KEY not set. Skipping emails.");
+        return;
     }
 
-    const { participants, event } = await req.json();
-    console.log(`[send-update-notification] Processing request for ${participants.length} participants for event "${event.title}".`);
-
-    if (!participants || participants.length === 0) {
-        console.log("[send-update-notification] No participants to notify. Exiting.");
-        return new Response(JSON.stringify({ message: 'No participants to notify.' }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        });
-    }
-
-    // Create a batch of emails to send
     const emailBatch = [];
     for (const participant of participants) {
         const { customer, bookingId } = participant;
-
         if (!customer || !customer.email || !customer.name || !bookingId) {
-            console.warn("[send-update-notification] Skipping participant with missing data:", participant);
+            console.warn("[send-update-notification] Skipping participant with missing data for email:", participant);
             continue;
         }
 
         const manageUrl = `https://pfoten-event.vercel.app/?view=manage&bookingId=${bookingId}`;
         const htmlContent = createUpdateEmailHtml(customer.name, event, manageUrl);
 
-        const emailPayload = {
+        emailBatch.push({
             from: FROM_EMAIL,
             to: customer.email,
             subject: 'Wichtige Änderung bei deiner Event-Buchung',
             html: htmlContent,
             reply_to: REPLY_TO_EMAIL
-        };
-        
-        emailBatch.push(emailPayload);
-    }
-    
-    // Send the entire batch in one API call
-    if (emailBatch.length > 0) {
-        console.log(`[send-update-notification] Attempting to send batch of ${emailBatch.length} notifications via Resend API.`);
-        const resendResponse = await fetch('https://api.resend.com/emails/batch', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${RESEND_API_KEY}`,
-            },
-            body: JSON.stringify(emailBatch),
         });
-
-        const responseData = await resendResponse.json();
-        if (!resendResponse.ok) {
-            // Log the error but don't throw, as the whole process shouldn't fail if the email fails.
-            console.error(`[send-update-notification] Resend API Batch Error:`, responseData);
-        } else {
-            console.log(`[send-update-notification] Batch notifications sent successfully. Resend ID: ${responseData.data?.id}`);
-        }
-    } else {
-        console.log("[send-update-notification] No valid participants found to notify.");
     }
+
+    if (emailBatch.length > 0) {
+        console.log(`[send-update-notification] Sending batch of ${emailBatch.length} email notifications via Resend API.`);
+        try {
+            const resendResponse = await fetch('https://api.resend.com/emails/batch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${RESEND_API_KEY}`,
+                },
+                body: JSON.stringify(emailBatch),
+            });
+            const responseData = await resendResponse.json();
+            if (!resendResponse.ok) {
+                console.error(`[send-update-notification] Resend API Batch Error:`, responseData);
+            } else {
+                console.log(`[send-update-notification] Email batch sent successfully. Resend ID: ${responseData.data?.id}`);
+            }
+        } catch (emailError) {
+             console.error("[send-update-notification] Failed to send email batch:", emailError.message);
+        }
+    }
+}
+
+async function sendPushNotifications(participants: any[], event: any) {
+    if (!VAPID_PRIVATE_KEY) {
+        console.warn("[send-update-notification] VAPID_PRIVATE_KEY not set. Skipping push notifications.");
+        return;
+    }
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    const customerIds = participants.map(p => p.customer?.id).filter(Boolean);
+    if (customerIds.length === 0) return;
+
+    const { data: subscriptions, error: dbError } = await supabaseAdmin
+        .from('push_subscriptions')
+        .select('subscription_payload, endpoint')
+        .in('customer_id', customerIds);
+    
+    if (dbError) {
+        console.error("[send-update-notification] Error fetching push subscriptions:", dbError.message);
+        return;
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
+        console.log("[send-update-notification] No push subscriptions found for participants.");
+        return;
+    }
+
+    console.log(`[send-update-notification] Found ${subscriptions.length} push subscriptions to notify.`);
+    
+    const vapidOptions = {
+        vapidDetails: {
+            subject: VAPID_SUBJECT,
+            publicKey: VAPID_PUBLIC_KEY,
+            privateKey: VAPID_PRIVATE_KEY,
+        },
+    };
+
+    const notificationPayload = JSON.stringify({
+        title: `Update für: ${event.title}`,
+        body: `Neuer Termin: ${event.date} am Ort: ${event.location}`,
+        url: `https://pfoten-event.vercel.app/?view=manage&bookingId=${participants[0].bookingId}`
+    });
+
+    const promises = subscriptions.map(async (sub) => {
+        const pushSubscription = sub.subscription_payload as webpush.PushSubscription;
+        try {
+            await webpush.sendNotification(pushSubscription, notificationPayload, vapidOptions);
+        } catch (err) {
+            const errorResponse = err as { statusCode: number };
+            console.error(`[send-update-notification] Failed to send push to ${sub.endpoint}. Status: ${errorResponse.statusCode}`);
+            // If subscription is expired (410) or gone (404), delete it from DB.
+            if (errorResponse.statusCode === 410 || errorResponse.statusCode === 404) {
+                console.log(`[send-update-notification] Deleting expired subscription: ${sub.endpoint}`);
+                await supabaseAdmin.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+            }
+        }
+    });
+    
+    await Promise.all(promises);
+    console.log(`[send-update-notification] Push notifications dispatched.`);
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }});
+  }
+  
+  try {
+    const { participants, event } = await req.json();
+    console.log(`[send-update-notification] Processing request for ${participants?.length || 0} participants for event "${event?.title}".`);
+
+    if (!participants || participants.length === 0) {
+        return new Response(JSON.stringify({ message: 'No participants to notify.' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
+    }
+
+    // Run both notification types in parallel, but don't let one fail the other.
+    await Promise.all([
+        sendEmailNotifications(participants, event),
+        sendPushNotifications(participants, event)
+    ]);
     
     return new Response(JSON.stringify({ message: 'Notifications processed.' }), {
       status: 200,
@@ -141,8 +211,8 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("[send-update-notification] Function Error:", error.message);
-    return new Response(JSON.stringify({ error: "Benachrichtigungen konnten nicht gesendet werden.", details: error.message }), {
+    console.error("[send-update-notification] Top-level Function Error:", error.message);
+    return new Response(JSON.stringify({ error: "Benachrichtigungen konnten nicht verarbeitet werden.", details: error.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });

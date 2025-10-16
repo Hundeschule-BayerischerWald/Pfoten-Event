@@ -331,6 +331,22 @@ const api = {
         
         return data;
     },
+    savePushSubscription: async (subscription: PushSubscription, customerId: string): Promise<void> => {
+        const payload = {
+            customer_id: customerId,
+            subscription_payload: subscription.toJSON(),
+            endpoint: subscription.endpoint
+        };
+
+        const { error } = await supabase
+            .from('push_subscriptions')
+            .upsert(payload, { onConflict: 'endpoint' });
+
+        if (error) {
+            console.error("Error saving push subscription:", error);
+            throw new Error("Push-Benachrichtigung konnte nicht gespeichert werden.");
+        }
+    },
 };
 
 // --- HELPER FUNKTIONEN ---
@@ -939,12 +955,12 @@ const CsvImportModal = ({ onImport, onClose }) => {
                         <strong>Anforderungen:</strong>
                         <ul>
                             <li>Die Datei muss im CSV-Format sein (komma-getrennt).</li>
-                            <li>Die erste Zeile muss die exakte Kopfzeile sein: <code>Datum,Uhrzeit,Titel,Treffpunkt,Plätze,Kategorie</code></li>
+                            <li>Die erste Zeile muss die exakte Kopfzeile sein: <code>datum,uhrzeit,titel,treffpunkt,plätze,kategorie</code></li>
                             <li>Datumsformat: <code>JJJJ-MM-TT</code></li>
                             <li>Uhrzeitformat: <code>HH:MM</code> (24-Stunden)</li>
                         </ul>
                         <strong>Beispiel:</strong>
-                        <pre><code>Datum,Uhrzeit,Titel,Treffpunkt,Plätze,Kategorie\n2025-10-28,16:00,Welpenstunde,Welpenwiese,8,Orchid\n2025-10-29,18:30,L2 - Grundlagen,,6,LimeGreen</code></pre>
+                        <pre><code>datum,uhrzeit,titel,treffpunkt,plätze,kategorie\n2025-10-28,16:00,Welpenstunde,Welpenwiese,8,Orchid\n2025-10-29,18:30,L2 - Grundlagen,,6,LimeGreen</code></pre>
                         <p><small>Wenn der Treffpunkt leer gelassen wird, wird "Hundeplatz Ascha" als Standard verwendet.</small></p>
                     </div>
 
@@ -1187,6 +1203,82 @@ const AdminPanel = () => {
     `;
 };
 
+const VAPID_PUBLIC_KEY = 'BGT_xTDYSo0h65L0nsgJq-53M8Fwxm2nVTNV4qE4uhhPGIq5CcrwD3yAydoXv_YQz3fB1i3d2-a7x95nJVEV0r8';
+
+const urlBase64ToUint8Array = (base64String) => {
+    const padding = "=".repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+};
+
+const NotificationManager = ({ customerId }) => {
+    const [isSubscribed, setIsSubscribed] = useState(false);
+    const [permission, setPermission] = useState(Notification.permission);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            setLoading(false);
+            return;
+        }
+        navigator.serviceWorker.ready.then(reg => {
+            reg.pushManager.getSubscription().then(sub => {
+                if (sub) {
+                    setIsSubscribed(true);
+                }
+                setLoading(false);
+            });
+        });
+    }, []);
+
+    const subscribeUser = async () => {
+        if (!('serviceWorker' in navigator)) return;
+
+        const permissionResult = await Notification.requestPermission();
+        setPermission(permissionResult);
+        if (permissionResult !== 'granted') {
+            alert('Um Benachrichtigungen zu erhalten, musst du sie im Browser erlauben.');
+            return;
+        }
+
+        try {
+            const reg = await navigator.serviceWorker.ready;
+            const sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+            
+            await api.savePushSubscription(sub, customerId);
+            setIsSubscribed(true);
+            
+        } catch (error) {
+            console.error('Failed to subscribe the user: ', error);
+            alert('Fehler beim Aktivieren der Benachrichtigungen.');
+        }
+    };
+    
+    if (loading || permission === 'denied' || !('PushManager' in window)) {
+        return null; // Don't show anything if loading, denied, or not supported
+    }
+
+    if (isSubscribed) {
+        return html`<p class="notification-status success-message">✅ Du erhältst Push-Nachrichten bei Event-Änderungen.</p>`;
+    }
+    
+    return html`
+        <div class="notification-prompt">
+            <p>Möchtest du Push-Nachrichten erhalten, wenn sich ein gebuchtes Event ändert?</p>
+            <button class="btn btn-secondary" onClick=${subscribeUser}>Benachrichtigungen aktivieren</button>
+        </div>
+    `;
+};
+
+
 const BookingManagementPortal = ({ setView, initialBookingId }) => {
     const [bookingIdInput, setBookingIdInput] = useState(initialBookingId || '');
     const [booking, setBooking] = useState<Booking | null>(null);
@@ -1363,6 +1455,8 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
        <section class="manage-portal">
             <h2>Buchungsübersicht für ${booking.customer.name}</h2>
             <p>Buchungsnummer: <strong>${booking.bookingId}</strong></p>
+            
+            <${NotificationManager} customerId=${booking.customer.id} />
 
             ${error && html`<p class="error-message">${error}</p>`}
             ${successMessage && html`<p class="success-message">${successMessage}</p>`}
