@@ -1780,21 +1780,24 @@ const App = () => {
     };
 
     useEffect(() => {
-        // Service Worker Registration for PWA
+        // --- Push Notification Permission Check ---
+        // Check permission status immediately on component mount.
+        if ('Notification' in window && 'serviceWorker' in navigator) {
+            setNotificationPermission(Notification.permission);
+        } else {
+            setNotificationPermission('unsupported');
+        }
+
+        // --- Service Worker Registration ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
                     .then(registration => {
                         console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                        // Check notification permission status after SW is ready
-                        if ('Notification' in window) {
-                            setNotificationPermission(Notification.permission);
-                        } else {
-                            setNotificationPermission('unsupported');
-                        }
                     })
                     .catch(error => {
                         console.log('ServiceWorker registration failed: ', error);
+                        // If registration fails, notifications are not possible.
                         setNotificationPermission('unsupported');
                     });
             });
