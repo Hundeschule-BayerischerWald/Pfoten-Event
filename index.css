@@ -984,10 +984,6 @@ input[type="file"] {
     text-align: center;
     padding: 1rem;
     margin-top: 2rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
 }
 
 .admin-login-btn {
@@ -1003,45 +999,6 @@ input[type="file"] {
 
 .admin-login-btn:hover {
     color: var(--primary-color);
-}
-
-/* --- Push Notification Styles --- */
-.notification-prompt-container {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    background-color: var(--disabled-color);
-    padding: 0.75rem 1rem;
-    border-radius: var(--border-radius);
-    font-size: 0.9rem;
-}
-.notification-status-text {
-    font-size: 0.9rem;
-    color: var(--secondary-color);
-}
-.admin-push-notification-section {
-    background-color: var(--disabled-color);
-    padding: 1rem;
-    border-radius: var(--border-radius);
-    margin-bottom: 1.5rem;
-}
-.admin-push-notification-section h4 {
-    margin: 0 0 0.5rem 0;
-}
-.admin-push-notification-section p {
-    margin: 0 0 1rem 0;
-    font-size: 0.9rem;
-    color: var(--secondary-color);
-}
-.admin-push-notification-section .btn {
-    width: auto;
-}
-.push-message {
-    font-size: 0.85rem;
-    padding: 0.5rem 0.75rem !important;
-    margin: 1rem 0 0 0 !important;
-    text-align: center;
-    border-radius: 6px !important;
 }
 
 /* --- Cleanup Action Styles --- */

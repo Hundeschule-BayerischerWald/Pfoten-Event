@@ -12,10 +12,6 @@ const FROM_EMAIL = 'Hundeschule <anmeldungen@pfotencard.hs-bw.com>';
 const REPLY_TO_EMAIL = 'info@hs-bw.com';
 const EMAIL_HEADER_IMAGE_URL = 'https://hs-bw.com/wp-content/uploads/2024/12/Tasse4.jpg';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 const CATEGORY_COLORS = {
     "Orchid": { bg: "Orchid", text: "#1a1a1a" },
@@ -117,7 +113,7 @@ async function sendEmailNotifications(participants: any[], event: any) {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }});
   }
   
   try {
@@ -127,7 +123,7 @@ serve(async (req) => {
     if (!participants || participants.length === 0) {
         return new Response(JSON.stringify({ message: 'No participants to notify.' }), {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
         });
     }
 
@@ -136,14 +132,14 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({ message: 'Notifications processed.' }), {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
 
   } catch (error) {
     console.error("[send-update-notification] Top-level Function Error:", error.message);
     return new Response(JSON.stringify({ error: "Benachrichtigungen konnten nicht verarbeitet werden.", details: error.message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   }
 });
