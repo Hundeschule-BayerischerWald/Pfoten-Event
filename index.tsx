@@ -19,6 +19,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // --- KONFIGURATION ---
 const CANCELLATION_WINDOW_HOURS = 24; // Stornierungen/Änderungen nur bis 24h vor dem Event möglich
+const VAPID_PUBLIC_KEY = 'BHGjrm6VHcfPC2zdQxLDMgGC3n8y27miG-tlkDlBu0Kd250Pzy50QBXH4M-unooECqvnOyM-xiwxovVuuSMJb5o';
+
 
 const EVENT_CATEGORIES = {
     "Orchid": { titles: ["Welpenstunde"], locations: ["Welpenwiese"] },
@@ -67,6 +69,16 @@ const api = {
         }
         // Konvertiere Datum-Strings in Date-Objekte
         return data.map(e => ({...e, date: new Date(e.date)}));
+    },
+    savePushSubscription: async (subscription: PushSubscription): Promise<void> => {
+        const { error } = await supabase.from('push_subscriptions').upsert(
+            { subscription_data: subscription },
+            { onConflict: 'endpoint' } // Use generated endpoint column as unique key
+        );
+        if (error) {
+            console.error('Error saving push subscription:', error);
+            throw error;
+        }
     },
     saveBooking: async (customer: Omit<Customer, 'id'>, eventIds: string[]): Promise<Booking> => {
         // 1. Prüfe, ob Events noch verfügbar sind
@@ -355,6 +367,18 @@ const toInputTimeString = (date: Date): string => {
     const minutes = date.getMinutes().toString().padStart(2, '0');
     return `${hours}:${minutes}`;
 };
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
 
 
 // --- KOMPONENTEN ---
@@ -513,7 +537,7 @@ const BookingPanel = ({ selectedEvents, customer, onCustomerChange, onSubmit, er
                         })}
                     </ul>
 
-                    <p class="legal-notice">Hiermit melde ich mich rechtsverbindlich für die von mir ausgewählten Unterrichts-Stunden an.</p>
+                    <p class="legal-notice">Hiermit melde ich mich rechtsverbindlich für die von mir ausgewählten Unterrichts-Stunden an. *</p>
                     <div class="form-group">
                         <label for="name">Name *</label>
                         <input type="text" id="name" name="name" value=${customer.name} onInput=${handleInput} required />
@@ -981,6 +1005,8 @@ const AdminPanel = () => {
     const [cleanupLoading, setCleanupLoading] = useState(false);
     const [cleanupMessage, setCleanupMessage] = useState({ text: '', type: '' });
     const [isConfirmingCleanup, setIsConfirmingCleanup] = useState(false);
+    const [pushLoading, setPushLoading] = useState(false);
+    const [pushMessage, setPushMessage] = useState({ text: '', type: '' });
 
     const loadEvents = async () => {
         setLoading(true);
@@ -1056,6 +1082,23 @@ const AdminPanel = () => {
             setCleanupMessage({ text: `Fehler: ${err.message}`, type: 'error' });
         } finally {
             setCleanupLoading(false);
+        }
+    };
+
+    const handleSendPushNotification = async () => {
+        if (!confirm('Möchtest du wirklich eine Benachrichtigung an ALLE abonnierten Nutzer senden?')) {
+            return;
+        }
+        setPushLoading(true);
+        setPushMessage({ text: '', type: '' });
+        try {
+            const { data, error } = await supabase.functions.invoke('send-push-notification');
+            if (error) throw error;
+            setPushMessage({ text: data.message || 'Benachrichtigungen erfolgreich versendet.', type: 'success' });
+        } catch (err) {
+            setPushMessage({ text: `Fehler: ${err.message}`, type: 'error' });
+        } finally {
+            setPushLoading(false);
         }
     };
 
@@ -1135,6 +1178,18 @@ const AdminPanel = () => {
                                 `}
                             </div>
                         </div>
+                    </div>
+                    <div class="admin-push-notification-section">
+                        <h4>Push-Benachrichtigung für neue Events</h4>
+                        <p>Sendet eine "Neue Events buchbar"-Benachrichtigung an alle Nutzer, die dies abonniert haben.</p>
+                        <button class="btn btn-primary" onClick=${handleSendPushNotification} disabled=${pushLoading}>
+                            ${pushLoading ? 'Sendet...' : 'Benachrichtigung an alle senden'}
+                        </button>
+                        ${pushMessage.text && html`
+                            <p class="push-message ${pushMessage.type === 'error' ? 'error-message' : 'success-message'}">
+                                ${pushMessage.text}
+                            </p>
+                        `}
                     </div>
                      ${loading ? html`<div class="loading-state">Lade Events...</div>` : html`
                         <ul class="admin-event-list">
@@ -1691,6 +1746,38 @@ const App = () => {
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [initialBookingId, setInitialBookingId] = useState<string | null>(null);
     const [installPromptEvent, setInstallPromptEvent] = useState(null);
+    const [notificationPermission, setNotificationPermission] = useState('loading');
+
+    const handleRequestNotificationPermission = async () => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            alert("Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.");
+            setNotificationPermission('unsupported');
+            return;
+        }
+
+        try {
+            const permission = await Notification.requestPermission();
+            setNotificationPermission(permission);
+
+            if (permission === 'granted') {
+                console.log('Notification permission granted.');
+                const registration = await navigator.serviceWorker.ready;
+                console.log('Service Worker is ready.');
+                
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+                });
+                console.log('User is subscribed:', subscription);
+                await api.savePushSubscription(subscription);
+                console.log('Push subscription saved to server.');
+            } else {
+                console.log('Notification permission denied.');
+            }
+        } catch (error) {
+            console.error('Error during notification subscription:', error);
+        }
+    };
 
     useEffect(() => {
         // Service Worker Registration for PWA
@@ -1699,9 +1786,16 @@ const App = () => {
                 navigator.serviceWorker.register('./service-worker.js')
                     .then(registration => {
                         console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                        // Check notification permission status after SW is ready
+                        if ('Notification' in window) {
+                            setNotificationPermission(Notification.permission);
+                        } else {
+                            setNotificationPermission('unsupported');
+                        }
                     })
                     .catch(error => {
                         console.log('ServiceWorker registration failed: ', error);
+                        setNotificationPermission('unsupported');
                     });
             });
         }
@@ -1823,11 +1917,23 @@ const App = () => {
             `}
         </main>
         
-        ${!session && html`
-            <footer class="app-footer">
+        <footer class="app-footer">
+             ${notificationPermission === 'default' && html`
+                <div class="notification-prompt-container">
+                    <span>Über neue Events per Push-Nachricht informiert werden?</span>
+                    <button class="btn btn-secondary btn-small" onClick=${handleRequestNotificationPermission}>
+                        Benachrichtigungen aktivieren
+                    </button>
+                </div>
+            `}
+            ${notificationPermission === 'denied' && html`
+                <p class="notification-status-text">Du hast Benachrichtigungen blockiert. Aktiviere sie in den Browser-Einstellungen, um informiert zu werden.</p>
+            `}
+             ${!session && html`
                 <button class="admin-login-btn" onClick=${() => setIsLoginModalOpen(true)}>Mitarbeiter Login</button>
-            </footer>
-        `}
+            `}
+        </footer>
+        
 
         ${isLoginModalOpen && html`
             <${AdminLoginModal} 
