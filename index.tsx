@@ -16,9 +16,6 @@ const supabaseUrl = 'https://wjlroiymmpvwaapboahh.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqbHJvaXltbXB2d2FhcGJvYWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5NDExNDMsImV4cCI6MjA3NTUxNzE0M30.oRDURzRrudCmNAis4ZACxPsbWJwdxHt5Nw49phamZO4';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// --- PUSH NOTIFICATION KONFIGURATION ---
-const VAPID_PUBLIC_KEY = 'BHGjrm6VHcfPC2zdQxLDMgGC3n8y27miG-tlkDlBu0Kd250Pzy50QBXH4M-unooECqvnOyM-xiwxovVuuSMJb5o';
-
 
 // --- KONFIGURATION ---
 const CANCELLATION_WINDOW_HOURS = 24; // Stornierungen/Änderungen nur bis 24h vor dem Event möglich
@@ -334,34 +331,6 @@ const api = {
         
         return data;
     },
-    savePushSubscription: async (subscription: PushSubscription): Promise<void> => {
-        const subscriptionObject = subscription.toJSON();
-        const endpoint = subscriptionObject.endpoint;
-
-        if (!endpoint) {
-            console.error("Subscription object is missing endpoint:", subscriptionObject);
-            throw new Error("Das Push-Abonnement-Objekt ist ungültig, da der Endpunkt fehlt.");
-        }
-
-        // Wir verwenden .upsert() direkt auf der Tabelle anstatt einer komplexen RPC-Funktion.
-        // Dies ist der Standardweg, er ist einfacher und robuster.
-        const { error } = await supabase
-            .from('push_subscriptions')
-            .upsert(
-                { 
-                    endpoint: endpoint, 
-                    subscription_object: subscriptionObject 
-                },
-                {
-                    onConflict: 'endpoint' // Die Spalte, die den Konflikt auslöst (muss UNIQUE sein)
-                }
-            );
-        
-        if (error) {
-            console.error('Fehler beim Speichern des Push-Abonnements via upsert:', error);
-            throw new Error(`Das Push-Abonnement konnte nicht gespeichert werden: ${error.message}`);
-        }
-    },
 };
 
 // --- HELPER FUNKTIONEN ---
@@ -387,110 +356,8 @@ const toInputTimeString = (date: Date): string => {
     return `${hours}:${minutes}`;
 };
 
-// Konvertiert einen VAPID Public Key für den Push Manager
-function urlBase64ToUint8Array(base64String: string) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-        .replace(/\-/g, '+')
-        .replace(/_/g, '/');
-
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-
-    for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-}
-
 
 // --- KOMPONENTEN ---
-
-const PushNotificationManager = () => {
-    const [permissionStatus, setPermissionStatus] = useState('loading');
-    const [isSubscribed, setIsSubscribed] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-
-    useEffect(() => {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-            setPermissionStatus('unsupported');
-            return;
-        }
-
-        setPermissionStatus(Notification.permission);
-
-        navigator.serviceWorker.ready.then(registration => {
-            registration.pushManager.getSubscription().then(subscription => {
-                if (subscription) {
-                    setIsSubscribed(true);
-                }
-            });
-        });
-    }, []);
-
-    const subscribeUser = async () => {
-        setLoading(true);
-        setError('');
-        try {
-            const registration = await navigator.serviceWorker.ready;
-            const subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-            });
-            await api.savePushSubscription(subscription);
-            setIsSubscribed(true);
-            setPermissionStatus('granted');
-        } catch (err) {
-            console.error('Failed to subscribe the user: ', err);
-            setError('Fehler bei der Anmeldung für Benachrichtigungen.');
-            if (Notification.permission === 'denied') {
-                setPermissionStatus('denied');
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSubscribeClick = async () => {
-        if (Notification.permission === 'default') {
-            const permission = await Notification.requestPermission();
-            setPermissionStatus(permission);
-            if (permission === 'granted') {
-                await subscribeUser();
-            }
-        } else if (Notification.permission === 'granted') {
-            await subscribeUser();
-        }
-    };
-    
-    if (permissionStatus === 'loading' || permissionStatus === 'unsupported' || isSubscribed) {
-        return null; // Don't show anything if loading, not supported, or already subscribed
-    }
-
-    if (permissionStatus === 'denied') {
-        return html`
-            <div class="notification-status">
-                Du hast Benachrichtigungen blockiert.
-            </div>
-        `;
-    }
-
-    if (permissionStatus === 'default' && !isSubscribed) {
-        return html`
-            <div class="notification-prompt">
-                <p>Bleibe auf dem Laufenden über neue Events!</p>
-                <button class="btn btn-primary" onClick=${handleSubscribeClick} disabled=${loading}>
-                    ${loading ? 'Anmelden...' : 'Benachrichtigungen aktivieren'}
-                </button>
-                ${error && html`<p class="error-message" style=${{marginTop: '10px'}}>${error}</p>`}
-            </div>
-        `;
-    }
-
-    return null; // Default case
-};
-
 
 const EventLegend = () => {
     return html`
@@ -1114,9 +981,6 @@ const AdminPanel = () => {
     const [cleanupLoading, setCleanupLoading] = useState(false);
     const [cleanupMessage, setCleanupMessage] = useState({ text: '', type: '' });
     const [isConfirmingCleanup, setIsConfirmingCleanup] = useState(false);
-    const [notificationLoading, setNotificationLoading] = useState(false);
-    const [notificationMessage, setNotificationMessage] = useState({ text: '', type: '' });
-
 
     const loadEvents = async () => {
         setLoading(true);
@@ -1194,23 +1058,6 @@ const AdminPanel = () => {
             setCleanupLoading(false);
         }
     };
-    
-    const handleSendNotifications = async () => {
-        setNotificationMessage({ text: '', type: '' });
-        setNotificationLoading(true);
-        try {
-            const { data, error } = await supabase.functions.invoke('send-push-notifications');
-            if (error) throw error;
-            setNotificationMessage({
-                text: `Benachrichtigungen an ${data.sentCount} Nutzer gesendet.`,
-                type: 'success'
-            });
-        } catch (err) {
-            setNotificationMessage({ text: `Fehler: ${err.message}`, type: 'error' });
-        } finally {
-            setNotificationLoading(false);
-        }
-    };
 
     const handleSave = async (eventData) => {
         const finalEventData = { ...eventData };
@@ -1260,22 +1107,6 @@ const AdminPanel = () => {
                         <div class="admin-header-actions">
                             <button class="btn btn-primary" onClick=${handleAdd}>+ Neues Event</button>
                             <button class="btn btn-secondary" onClick=${() => setIsCsvModalOpen(true)}>CSV Import</button>
-                             <div class="notification-container">
-                                <div class="notification-control">
-                                    <button 
-                                        class="btn btn-secondary" 
-                                        onClick=${handleSendNotifications}
-                                        disabled=${notificationLoading}
-                                    >
-                                      ${notificationLoading ? 'Sende...' : 'Alle Nutzer benachrichtigen'}
-                                    </button>
-                                </div>
-                                ${notificationMessage.text && html`
-                                    <p class="notification-message ${notificationMessage.type === 'error' ? 'error-message' : 'success-message'}">
-                                        ${notificationMessage.text}
-                                    </p>
-                                `}
-                            </div>
                             <div class="cleanup-container">
                                 <div class="cleanup-control">
                                     ${cleanupLoading ? html`
@@ -1966,7 +1797,6 @@ const App = () => {
                     <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
                 </div>
             </div>
-             <${PushNotificationManager} />
             <nav class="main-nav">
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Buchungsansicht</button>
                 <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('manage')}>Meine Buchungen verwalten</button>
