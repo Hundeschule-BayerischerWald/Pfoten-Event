@@ -9,36 +9,36 @@ declare const Deno: any;
 
 // --- VAPID KEYS ---
 // Lade die VAPID-Schlüssel sicher aus den Supabase Secrets.
-const VAPID_PUBLIC_KEY = Deno.env.get("SUPABASE_VAPID_PUBLIC_KEY");
-const VAPID_PRIVATE_KEY = Deno.env.get("SUPABASE_VAPID_PRIVATE_KEY");
+// WICHTIG: Die Namen dürfen NICHT mit "SUPABASE_" beginnen.
+const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY");
+const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY");
 
-// Sicherheitsprüfung: Stelle sicher, dass die Schlüssel vorhanden sind.
-if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-  console.error("FATAL: VAPID_PUBLIC_KEY und VAPID_PRIVATE_KEY müssen in den Supabase Secrets gesetzt sein.");
-}
-
-// Erstelle eine WebPush-Instanz mit den VAPID-Details.
-// Die E-Mail-Adresse sollte ein Kontaktpunkt für den Push-Dienst sein.
-const webpush = new WebPush(
-  new URL("mailto:info@hs-bw.com"),
-  VAPID_PUBLIC_KEY!,
-  VAPID_PRIVATE_KEY!
-);
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 serve(async (req) => {
-  // Standard-Header für CORS und Content-Type
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Content-Type': 'application/json'
-  };
-
   // Behandle CORS Preflight-Anfragen
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
+    // Robuste Prüfung der VAPID-Schlüssel
+    if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+      const errorMessage = "FATAL: VAPID_PUBLIC_KEY und/oder VAPID_PRIVATE_KEY sind nicht in den Supabase Projekt-Secrets gesetzt. Die Funktion kann nicht ausgeführt werden.";
+      console.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    // Erstelle eine WebPush-Instanz mit den VAPID-Details.
+    const webpush = new WebPush(
+      "mailto:anmeldungen@pfotencard.hs-bw.com",
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    );
+
     // Erstelle einen Supabase-Admin-Client, um auf die Datenbank zuzugreifen.
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -55,7 +55,7 @@ serve(async (req) => {
     if (!subscriptions || subscriptions.length === 0) {
       return new Response(JSON.stringify({ message: "Keine Abonnements für den Versand von Benachrichtigungen gefunden." }), {
         status: 200,
-        headers,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -101,14 +101,14 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ message }), {
       status: 200,
-      headers,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error("Fehler in der Edge Function:", error.message);
     return new Response(JSON.stringify({ error: "Fehler beim Senden der Push-Benachrichtigungen.", details: error.message }), {
       status: 500,
-      headers,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });

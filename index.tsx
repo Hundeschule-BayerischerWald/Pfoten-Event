@@ -71,14 +71,41 @@ const api = {
         return data.map(e => ({...e, date: new Date(e.date)}));
     },
     savePushSubscription: async (subscription: PushSubscription): Promise<void> => {
-        const { error } = await supabase.from('push_subscriptions').upsert(
-            { subscription_data: subscription },
-            { onConflict: 'endpoint' } // Use generated endpoint column as unique key
-        );
-        if (error) {
-            console.error('Error saving push subscription:', error);
-            throw error;
+        const subscriptionJson = subscription.toJSON();
+        const endpoint = subscriptionJson.endpoint;
+
+        if (!endpoint) {
+            console.error("Subscription is missing endpoint and cannot be saved.");
+            return;
         }
+
+        // To robustly handle an "upsert" without relying on a potentially missing
+        // unique constraint for onConflict, we perform a "delete-then-insert".
+        
+        // 1. Delete any existing subscription with the same endpoint.
+        // This logic mirrors the cleanup in the send-push-notification function.
+        const { error: deleteError } = await supabase
+            .from('push_subscriptions')
+            .delete()
+            .eq('subscription_data->>endpoint', endpoint);
+
+        if (deleteError) {
+            console.error('Error removing old push subscription:', deleteError);
+            // We throw here because a failure could mean we can't guarantee the insert won't create a duplicate
+            // if some other constraint exists. It's safer to fail.
+            throw deleteError;
+        }
+
+        // 2. Insert the new subscription data.
+        const { error: insertError } = await supabase
+            .from('push_subscriptions')
+            .insert({ subscription_data: subscriptionJson });
+
+        if (insertError) {
+            console.error('Error inserting new push subscription:', insertError);
+            throw insertError;
+        }
+        console.log('Successfully saved push subscription:', endpoint);
     },
     saveBooking: async (customer: Omit<Customer, 'id'>, eventIds: string[]): Promise<Booking> => {
         // 1. Prüfe, ob Events noch verfügbar sind

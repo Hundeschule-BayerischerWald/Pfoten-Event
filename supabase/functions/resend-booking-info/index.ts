@@ -26,6 +26,11 @@ const EMAIL_HEADER_IMAGE_URL = 'https://hs-bw.com/wp-content/uploads/2024/12/Tas
 // WICHTIG: Das PDF muss in einem öffentlichen Supabase Storage Bucket namens "assets" liegen.
 const PDF_ATTACHMENT_URL = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/assets/Wichtige-Infos-zur-Anmeldung.pdf`;
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 function createRecoveryEmailHtml(customerName: string, bookingIds: string[], manageUrl: string) {
     const bookingsHtml = bookingIds.map(id => `
         <li style="border: 1px solid #e0e0e0; background-color: #f9f9f9; padding: 10px 15px; margin-bottom: 8px; border-radius: 12px; font-family: monospace; font-size: 16px; text-align: center;">${id}</li>
@@ -62,11 +67,11 @@ function createRecoveryEmailHtml(customerName: string, bookingIds: string[], man
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: { 'Access-control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }});
+    return new Response('ok', { headers: corsHeaders });
   }
   
     const genericSuccessResponse = new Response(JSON.stringify({ message: 'Anfrage verarbeitet.' }), {
-        status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   
     try {
