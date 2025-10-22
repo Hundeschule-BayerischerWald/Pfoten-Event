@@ -335,8 +335,11 @@ const api = {
         return data;
     },
     savePushSubscription: async (subscription: PushSubscription): Promise<void> => {
+        // WICHTIGE ÄNDERUNG: Das PushSubscription-Objekt muss mit .toJSON()
+        // in ein einfaches JSON-Objekt umgewandelt werden, bevor es an Supabase gesendet wird.
+        // Das war der fehlende Schritt.
         const { error } = await supabase.rpc('upsert_push_subscription', {
-            p_subscription_object: subscription
+            p_subscription_object: subscription.toJSON()
         });
 
         if (error) {
