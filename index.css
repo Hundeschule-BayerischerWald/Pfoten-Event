@@ -829,25 +829,31 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 
 /* --- Notification Styles --- */
 .notification-prompt {
-    background-color: var(--disabled-color);
+    background-color: var(--surface-color);
     padding: 1rem;
     border-radius: var(--border-radius);
-    margin: 1.5rem 0;
+    margin: 0 auto;
     text-align: center;
+    max-width: fit-content;
+    box-shadow: var(--box-shadow);
+    border: 1px solid var(--border-color);
 }
 .notification-prompt p {
     margin: 0 0 1rem 0;
+    color: var(--text-color);
+    font-weight: 500;
 }
 .notification-prompt .btn {
     width: auto;
 }
 
 .notification-status {
-    margin: 1.5rem 0;
-    padding-top: 1rem;
-    padding-bottom: 1rem;
+    font-size: 0.9rem;
+    color: var(--secondary-color);
     text-align: center;
+    padding: 0.5rem;
 }
+
 
 /* --- Modal Styles --- */
 .modal-overlay {
@@ -1002,21 +1008,21 @@ input[type="file"] {
 }
 
 /* --- Cleanup Action Styles --- */
-.cleanup-container {
+.cleanup-container, .notification-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
 }
 
-.cleanup-control {
+.cleanup-control, .notification-control {
     min-height: 38px;
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
-.cleanup-control .btn {
+.cleanup-control .btn, .notification-control .btn {
     width: 100%;
 }
 
@@ -1030,7 +1036,7 @@ input[type="file"] {
     color: var(--secondary-color);
 }
 
-.cleanup-message {
+.cleanup-message, .notification-message {
     font-size: 0.85rem;
     padding: 0.5rem 0.75rem !important;
     margin: 0 !important;
