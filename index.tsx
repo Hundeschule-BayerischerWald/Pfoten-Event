@@ -335,16 +335,31 @@ const api = {
         return data;
     },
     savePushSubscription: async (subscription: PushSubscription): Promise<void> => {
-        // WICHTIGE ÄNDERUNG: Das PushSubscription-Objekt muss mit .toJSON()
-        // in ein einfaches JSON-Objekt umgewandelt werden, bevor es an Supabase gesendet wird.
-        // Das war der fehlende Schritt.
-        const { error } = await supabase.rpc('upsert_push_subscription', {
-            p_subscription_object: subscription.toJSON()
-        });
+        const subscriptionObject = subscription.toJSON();
+        const endpoint = subscriptionObject.endpoint;
 
+        if (!endpoint) {
+            console.error("Subscription object is missing endpoint:", subscriptionObject);
+            throw new Error("Das Push-Abonnement-Objekt ist ungültig, da der Endpunkt fehlt.");
+        }
+
+        // Wir verwenden .upsert() direkt auf der Tabelle anstatt einer komplexen RPC-Funktion.
+        // Dies ist der Standardweg, er ist einfacher und robuster.
+        const { error } = await supabase
+            .from('push_subscriptions')
+            .upsert(
+                { 
+                    endpoint: endpoint, 
+                    subscription_object: subscriptionObject 
+                },
+                {
+                    onConflict: 'endpoint' // Die Spalte, die den Konflikt auslöst (muss UNIQUE sein)
+                }
+            );
+        
         if (error) {
-            console.error('Error saving push subscription via rpc:', error);
-            throw new Error("Push-Abonnement konnte nicht gespeichert werden.");
+            console.error('Fehler beim Speichern des Push-Abonnements via upsert:', error);
+            throw new Error(`Das Push-Abonnement konnte nicht gespeichert werden: ${error.message}`);
         }
     },
 };
