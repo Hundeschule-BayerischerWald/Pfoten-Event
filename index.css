@@ -1198,9 +1198,20 @@ input[type="file"] {
     }
     .event-item {
       font-size: 0.85rem;
-      flex-direction: column;
+      flex-wrap: wrap;
       align-items: flex-start;
-      gap: 0.5rem;
+      row-gap: 0.25rem;
+      column-gap: 0.5rem;
+    }
+    .event-item .event-details {
+        /* This is the key fix: It allows the label to shrink and fit 
+           next to the checkbox, preventing a premature wrap. */
+        flex: 1 1 0%;
+    }
+    .event-item .event-capacity {
+        flex-basis: 100%;
+        text-align: left;
+        padding-left: calc(18px + 0.5rem); /* 18px checkbox width + 0.5rem column-gap */
     }
     .modal-content {
       padding: 1.5rem;

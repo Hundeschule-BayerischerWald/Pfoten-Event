@@ -464,7 +464,7 @@ const EventItem = ({ event, onSelect, isSelected, isLocked }) => {
                 aria-label=${`Event ${event.title} auswählen`}
             />`}
             <label for=${isFull || isLocked ? null : event.id} class="event-details">
-                <span>${formatDate(event.date)}. – ${formatTime(event.date)} – ${event.title} – ${event.location}</span>
+                <span>${formatDate(event.date)} – ${formatTime(event.date)} – ${event.title} – ${event.location}</span>
             </label>
             <div class="event-capacity ${isFull ? 'capacity-full' : ''}">
                 ${isLocked ? 'Vergangen' : isFull ? 'Leider Ausgebucht' : `${remaining} ${remaining === 1 ? 'Platz' : 'Plätze'} noch frei`}
