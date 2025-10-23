@@ -31,6 +31,8 @@ const EVENT_CATEGORIES = {
     "Tomato": { titles: ["Prüfungs-Stunden"], locations: ["Hundeschule Innenbereich"] }
 };
 
+const TRAINERS = ["Christian", "Sophie", "Sandra", "Susi", "Petra"];
+
 // --- TYPEN & INTERFACES ---
 interface Event {
     id: string;
@@ -40,6 +42,7 @@ interface Event {
     total_capacity: number; // snake_case from db
     booked_capacity: number; // snake_case from db
     category: string;
+    trainer: string | null;
 }
 
 interface Customer {
@@ -221,6 +224,7 @@ const api = {
             date: newEventData.date.toISOString(),
             total_capacity: newEventData.totalCapacity,
             category: newEventData.category,
+            trainer: newEventData.trainer,
             booked_capacity: 0
         }).select().single();
         if (error || !data) throw new Error("Event konnte nicht erstellt werden.");
@@ -608,6 +612,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
         time: '',
         totalCapacity: 6,
         category: Object.keys(EVENT_CATEGORIES)[0],
+        trainer: '',
     });
 
     useEffect(() => {
@@ -619,6 +624,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
                 time: toInputTimeString(event.date),
                 totalCapacity: event.total_capacity,
                 category: event.category,
+                trainer: event.trainer || '',
             });
         } else {
              const defaultDate = new Date();
@@ -630,6 +636,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
                 time: toInputTimeString(defaultDate),
                 totalCapacity: 6,
                 category: Object.keys(EVENT_CATEGORIES)[0],
+                trainer: '',
             });
         }
     }, [event]);
@@ -647,6 +654,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
             date: combinedDate,
             totalCapacity: Number(formData.totalCapacity),
             category: formData.category,
+            trainer: formData.trainer || null,
         };
         onSave(eventData);
     };
@@ -689,6 +697,13 @@ const EventFormModal = ({ event, onSave, onClose }) => {
                                     ${Object.keys(EVENT_CATEGORIES).map(cat => html`<option value=${cat}>${cat}</option>`)}
                                 </select>
                             </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="trainer">Trainer</label>
+                            <select id="trainer" name="trainer" value=${formData.trainer} onChange=${handleChange}>
+                                <option value="">Kein Trainer</option>
+                                ${TRAINERS.map(t => html`<option key=${t} value=${t}>${t}</option>`)}
+                            </select>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -1146,6 +1161,11 @@ const AdminPanel = () => {
                                         <span>Treffpunkt: ${event.location}</span>
                                         <span>Plätze: ${event.booked_capacity} / ${event.total_capacity}</span>
                                    </div>
+                                   ${event.trainer && html`
+                                        <div class="admin-event-trainer">
+                                            <span>Trainer: <strong>${event.trainer}</strong></span>
+                                        </div>
+                                   `}
                                    <div class="admin-event-actions">
                                        <button class="btn btn-secondary" onClick=${() => handleEdit(event)}>Bearbeiten</button>
                                        <button class="btn btn-secondary" onClick=${() => handleCopy(event)}>Kopieren</button>
