@@ -715,6 +715,21 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     color: var(--secondary-color);
 }
 
+.overview-event-trainer {
+    text-align: center;
+    padding: 0.75rem 1rem;
+    margin: -0.5rem 0 0.5rem 0;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+.no-trainer-assigned {
+    font-style: italic;
+    color: var(--secondary-color);
+    opacity: 0.8;
+    font-weight: 400;
+}
+
 .no-participants-message {
     padding: 1rem;
     text-align: center;

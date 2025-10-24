@@ -257,6 +257,13 @@ const api = {
             throw new Error("Fehler beim Abrufen der Event-Teilnehmer.");
         }
         
+        // Prüfen, ob für Kunden relevante Daten geändert wurden, BEVOR die E-Mail gesendet wird.
+        const originalEvent = eventWithBookings;
+        const hasRelevantChanges =
+            (updatedEventData.title && updatedEventData.title !== originalEvent.title) ||
+            (updatedEventData.location && updatedEventData.location !== originalEvent.location) ||
+            (updatedEventData.date && updatedEventData.date.getTime() !== new Date(originalEvent.date).getTime());
+        
         const participants = eventWithBookings?.bookings_events
             .map(be => ({
                 customer: be.bookings?.customers,
@@ -275,8 +282,8 @@ const api = {
         
         const updatedEventResult = {...data, date: new Date(data.date)};
 
-        // 3. Benachrichtigungen senden, wenn Teilnehmer vorhanden sind
-        if (participants.length > 0) {
+        // 3. Benachrichtigungen nur senden, wenn relevante Änderungen vorliegen und Teilnehmer vorhanden sind
+        if (participants.length > 0 && hasRelevantChanges) {
             try {
                 await supabase.functions.invoke('send-update-notification', {
                     body: {
@@ -808,6 +815,16 @@ const BookingOverview = () => {
                             </div>
                         </div>
 
+                        ${event.trainer ? html`
+                            <div class="overview-event-trainer">
+                                <span>Trainer: <strong>${event.trainer}</strong></span>
+                            </div>
+                        ` : html`
+                            <div class="overview-event-trainer no-trainer-assigned">
+                                <span>Kein Trainer zugewiesen</span>
+                            </div>
+                        `}
+
                         ${participants.length > 0 ? html`
                             <ul class="participant-list">
                                 ${participants.map(customer => html`
@@ -1161,9 +1178,13 @@ const AdminPanel = () => {
                                         <span>Treffpunkt: ${event.location}</span>
                                         <span>Plätze: ${event.booked_capacity} / ${event.total_capacity}</span>
                                    </div>
-                                   ${event.trainer && html`
+                                   ${event.trainer ? html`
                                         <div class="admin-event-trainer">
                                             <span>Trainer: <strong>${event.trainer}</strong></span>
+                                        </div>
+                                   ` : html`
+                                        <div class="admin-event-trainer no-trainer-assigned">
+                                            <span>Kein Trainer zugewiesen</span>
                                         </div>
                                    `}
                                    <div class="admin-event-actions">
