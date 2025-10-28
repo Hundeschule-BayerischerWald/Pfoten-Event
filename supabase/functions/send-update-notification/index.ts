@@ -30,15 +30,15 @@ function createUpdateEmailHtml(customerName: string, event: any, changes: any, m
 
   // HTML für geänderte und unveränderte Felder erstellen
   const titleHtml = changes.title 
-    ? `<span style="text-decoration: line-through; color: #dc3545;">${changes.title.from}</span> <strong style="color: #28a745;">${changes.title.to}</strong>`
+    ? `<span style="text-decoration: line-through;">${changes.title.from}</span> → ${changes.title.to}`
     : event.title;
 
   const dateHtml = changes.date
-    ? `<strong>Termin:</strong> <span style="text-decoration: line-through; color: #dc3545;">${changes.date.from}</span> <strong style="color: #28a745;">${changes.date.to}</strong>`
+    ? `<strong>Termin:</strong> <span style="text-decoration: line-through;">${changes.date.from}</span> → ${changes.date.to}`
     : `<strong>Termin:</strong> ${event.date}`;
 
   const locationHtml = changes.location
-    ? `<strong>Ort:</strong> <span style="text-decoration: line-through; color: #dc3545;">${changes.location.from}</span> <strong style="color: #28a745;">${changes.location.to}</strong>`
+    ? `<strong>Ort:</strong> <span style="text-decoration: line-through;">${changes.location.from}</span> → ${changes.location.to}`
     : `<strong>Ort:</strong> ${event.location}`;
   
   return `
