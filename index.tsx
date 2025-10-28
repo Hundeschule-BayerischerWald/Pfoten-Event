@@ -257,12 +257,24 @@ const api = {
             throw new Error("Fehler beim Abrufen der Event-Teilnehmer.");
         }
         
-        // Prüfen, ob für Kunden relevante Daten geändert wurden, BEVOR die E-Mail gesendet wird.
+        // Vergleichen, um Änderungen für die E-Mail zu finden
         const originalEvent = eventWithBookings;
-        const hasRelevantChanges =
-            (updatedEventData.title && updatedEventData.title !== originalEvent.title) ||
-            (updatedEventData.location && updatedEventData.location !== originalEvent.location) ||
-            (updatedEventData.date && updatedEventData.date.getTime() !== new Date(originalEvent.date).getTime());
+        const changes: { [key: string]: { from: string; to: string } } = {};
+
+        if (updatedEventData.title && updatedEventData.title !== originalEvent.title) {
+            changes.title = { from: originalEvent.title, to: updatedEventData.title };
+        }
+        if (updatedEventData.location && updatedEventData.location !== originalEvent.location) {
+            changes.location = { from: originalEvent.location, to: updatedEventData.location };
+        }
+        if (updatedEventData.date && updatedEventData.date.getTime() !== new Date(originalEvent.date).getTime()) {
+            changes.date = {
+                from: new Date(originalEvent.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
+                to: new Date(updatedEventData.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr'
+            };
+        }
+
+        const hasRelevantChanges = Object.keys(changes).length > 0;
         
         const participants = eventWithBookings?.bookings_events
             .map(be => ({
@@ -293,7 +305,8 @@ const api = {
                             date: new Date(updatedEventResult.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
                             location: updatedEventResult.location,
                             category: updatedEventResult.category
-                        }
+                        },
+                        changes: changes // Das Objekt mit den Änderungen übergeben
                     }
                 });
             } catch (invokeError) {

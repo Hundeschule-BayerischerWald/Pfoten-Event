@@ -24,9 +24,22 @@ const CATEGORY_COLORS = {
     "Tomato": { bg: "Tomato", text: "white" }
 };
 
-function createUpdateEmailHtml(customerName: string, event: any, manageUrl: string) {
+function createUpdateEmailHtml(customerName: string, event: any, changes: any, manageUrl: string) {
   const styleInfo = CATEGORY_COLORS[event.category] || { bg: '#fff3cd', text: '#333' };
   const eventStyle = `background-color: ${styleInfo.bg}; color: ${styleInfo.text}; border: 1px solid rgba(0,0,0,0.1); padding: 12px 15px; margin: 20px 0; border-radius: 12px; font-size: 14px; line-height: 1.5;`;
+
+  // HTML für geänderte und unveränderte Felder erstellen
+  const titleHtml = changes.title 
+    ? `<span style="text-decoration: line-through; color: #dc3545;">${changes.title.from}</span> <strong style="color: #28a745;">${changes.title.to}</strong>`
+    : event.title;
+
+  const dateHtml = changes.date
+    ? `<strong>Termin:</strong> <span style="text-decoration: line-through; color: #dc3545;">${changes.date.from}</span> <strong style="color: #28a745;">${changes.date.to}</strong>`
+    : `<strong>Termin:</strong> ${event.date}`;
+
+  const locationHtml = changes.location
+    ? `<strong>Ort:</strong> <span style="text-decoration: line-through; color: #dc3545;">${changes.location.from}</span> <strong style="color: #28a745;">${changes.location.to}</strong>`
+    : `<strong>Ort:</strong> ${event.location}`;
   
   return `
     <!DOCTYPE html><html><head><style>
@@ -40,10 +53,10 @@ function createUpdateEmailHtml(customerName: string, event: any, manageUrl: stri
         <h1 class="header">Wichtige Info: Event-Änderung</h1><p>Hallo ${customerName},</p>
         <p>bitte beachte, dass sich die Details für eines deiner gebuchten Events geändert haben. Hier sind die neuen Informationen:</p>
         <div style="${eventStyle}">
-          <div style="font-size: 15px; font-weight: bold; color: ${styleInfo.text}; margin-bottom: 5px;">${event.title}</div>
+          <div style="font-size: 15px; font-weight: bold; color: ${styleInfo.text}; margin-bottom: 5px;">${titleHtml}</div>
           <div style="font-size: 13px; color: ${styleInfo.text}; opacity: 0.9;">
-            <strong>Neuer Termin:</strong> ${event.date}<br>
-            <strong>Neuer Ort:</strong> ${event.location}
+            ${dateHtml}<br>
+            ${locationHtml}
           </div>
         </div>
         <p>Deine Anmeldung für dieses Event wurde automatisch auf die neuen Daten übertragen. Alle wichtigen Dokumente (z.B. AGB, Infos zur Anmeldung) hast du bereits mit deiner ursprünglichen Buchungsbestätigung erhalten.</p>
@@ -62,7 +75,7 @@ function createUpdateEmailHtml(customerName: string, event: any, manageUrl: stri
   `;
 }
 
-async function sendEmailNotifications(participants: any[], event: any) {
+async function sendEmailNotifications(participants: any[], event: any, changes: any) {
     if (!RESEND_API_KEY) {
         console.error("[send-update-notification] RESEND_API_KEY not set. Skipping emails.");
         return;
@@ -77,7 +90,7 @@ async function sendEmailNotifications(participants: any[], event: any) {
         }
 
         const manageUrl = `https://pfoten-event.vercel.app/?view=manage&bookingId=${bookingId}`;
-        const htmlContent = createUpdateEmailHtml(customer.name, event, manageUrl);
+        const htmlContent = createUpdateEmailHtml(customer.name, event, changes, manageUrl);
 
         emailBatch.push({
             from: FROM_EMAIL,
@@ -117,7 +130,7 @@ serve(async (req) => {
   }
   
   try {
-    const { participants, event } = await req.json();
+    const { participants, event, changes } = await req.json();
     console.log(`[send-update-notification] Processing request for ${participants?.length || 0} participants for event "${event?.title}".`);
 
     if (!participants || participants.length === 0) {
@@ -128,7 +141,7 @@ serve(async (req) => {
     }
 
     // Send email notifications
-    await sendEmailNotifications(participants, event);
+    await sendEmailNotifications(participants, event, changes);
     
     return new Response(JSON.stringify({ message: 'Notifications processed.' }), {
       status: 200,
