@@ -351,7 +351,7 @@ body {
     margin-bottom: 0.5rem;
 }
 
-.form-group input, .form-group select {
+.form-group input, .form-group select, .form-group textarea {
     width: 100%;
     padding: 0.75rem;
     border: 1px solid var(--border-color);
@@ -363,7 +363,12 @@ body {
     font-family: inherit;
 }
 
-.form-group input:focus, .form-group select:focus {
+.form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
@@ -1168,6 +1173,73 @@ input[type="file"] {
     }
 }
 
+/* --- Live Status Banner --- */
+.status-banner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 2rem;
+    color: white;
+    box-shadow: var(--box-shadow);
+}
+.status-banner.is-active {
+    background: linear-gradient(135deg, #28a745, #218838);
+}
+.status-banner.is-cancelled {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+}
+.status-banner-icon {
+    flex-shrink: 0;
+}
+.status-banner-content {
+    flex-grow: 1;
+}
+.status-banner-message {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+.status-banner-time {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+/* --- Live Status Manager (Admin) --- */
+.live-status-manager {
+    padding-top: 1rem;
+}
+.live-status-manager h2 {
+    margin-top: 0;
+}
+.live-status-manager p {
+    color: var(--secondary-color);
+    margin-bottom: 2rem;
+}
+.status-selection {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.status-selection .btn {
+    flex: 1;
+    padding: 1rem;
+    font-size: 1.1rem;
+}
+.form-footer {
+    margin-top: 1.5rem;
+    text-align: right;
+}
+.form-footer .btn {
+    width: auto;
+}
+.form-footer .error-message, .form-footer .success-message {
+    text-align: left;
+}
+
+
 
 @media (max-width: 992px) {
     .main-container {
@@ -1294,5 +1366,8 @@ input[type="file"] {
     }
     .participant-contact {
         align-items: flex-start;
+    }
+    .status-selection {
+        flex-direction: column;
     }
 }
