@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live-Status Widget</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="status-widget.css">
+    <style>
+        /* Ensures the widget background is transparent for seamless embedding */
+        body {
+            background-color: transparent;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "preact/": "https://aistudiocdn.com/preact@^10.27.2/",
+    "preact": "https://aistudiocdn.com/preact@^10.27.2",
+    "htm": "https://aistudiocdn.com/htm@^3.1.1",
+    "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/+esm"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="status-widget"></div>
+    <script type="module" src="status-widget.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+:root {
+    --primary-color: #007bff;
+    --success-color: #28a745;
+    --error-color: #dc3545;
+    --border-radius: 8px;
+    --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+#status-widget {
+    padding: 0;
+    margin: 0;
+}
+
+/* Live Status Banner */
+.status-banner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    color: white;
+    box-shadow: var(--box-shadow);
+    /* Remove margin-bottom to fit perfectly in iframe */
+    margin-bottom: 0; 
+}
+.status-banner.is-active {
+    background: linear-gradient(135deg, #28a745, #218838);
+}
+.status-banner.is-cancelled {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+}
+.status-banner-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+}
+.status-banner-content {
+    flex-grow: 1;
+}
+.status-banner-message {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+.status-banner-time {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
