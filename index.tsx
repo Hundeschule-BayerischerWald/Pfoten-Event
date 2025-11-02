@@ -1159,21 +1159,21 @@ const LiveStatusManager = () => {
                         class=${`btn ${status === 'active' ? 'btn-success' : 'btn-secondary'}`}
                         onClick=${() => setStatus('active')}
                     >
-                        Betrieb aktiv
+                        Status 'aktiv'
                     </button>
                     <button 
                         type="button" 
                         class=${`btn ${status === 'partial' ? 'btn-warning' : 'btn-secondary'}`}
                         onClick=${() => setStatus('partial')}
                     >
-                        Teilweiser Betrieb / Einschränkungen
+                        Status 'mit Einschränkungen'
                     </button>
                     <button 
                         type="button" 
                         class=${`btn ${status === 'cancelled' ? 'btn-danger' : 'btn-secondary'}`}
                         onClick=${() => setStatus('cancelled')}
                     >
-                        Betrieb unterbrochen
+                        Status 'unterbrochen'
                     </button>
                 </div>
                 <div class="form-group">

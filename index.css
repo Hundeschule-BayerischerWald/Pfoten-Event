@@ -1,3 +1,4 @@
+
 :root {
     --primary-color: #007bff;
     --primary-hover-color: #0056b3;
@@ -1208,6 +1209,7 @@ input[type="file"] {
 }
 .status-banner-content {
     flex-grow: 1;
+    text-align: center;
 }
 .status-banner-message {
     margin: 0;
