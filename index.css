@@ -1202,7 +1202,7 @@ input[type="file"] {
     background: linear-gradient(135deg, #dc3545, #c82333);
 }
 .status-banner.is-partial {
-    background: linear-gradient(135deg, #28a745, #ffc107, #dc3545);
+    background: linear-gradient(135deg, #28a745 45%, #dc3545 55%);
 }
 .status-banner-icon {
     flex-shrink: 0;
