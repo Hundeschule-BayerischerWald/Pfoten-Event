@@ -1,3 +1,4 @@
+
 :root {
     --primary-color: #007bff;
     --primary-hover-color: #0056b3;
@@ -1201,7 +1202,7 @@ input[type="file"] {
     background: linear-gradient(135deg, #dc3545, #c82333);
 }
 .status-banner.is-partial {
-    background: linear-gradient(135deg, #28a745, #ffc107 52%, #dc3545 88%);
+    background: linear-gradient(135deg, #28a745, #ffc107 55%, #dc3545 85%);
 }
 .status-banner-icon {
     flex-shrink: 0;
