@@ -1,0 +1,179 @@
+<!--
+  INSTRUCTIONS FOR DIVI / WORDPRESS:
+  1. In the Divi Builder, add a "Code" module where you want the status banner to appear.
+  2. Copy the ENTIRE content of this file below.
+  3. Paste it into the "Code" module's content area.
+  4. Save the module and the page. Clear any caches if necessary.
+-->
+
+<!-- Start: Pfoten-Event Live-Status Widget (Version 2.2 - Line Breaks) -->
+<div id="pfoten-event-status-widget-container" style="max-width: 800px; margin: 1rem auto;">
+    <p style="font-family: sans-serif; color: #6c757d; padding: 1rem; text-align: center; border: 1px dashed #dee2e6; border-radius: 8px;">
+        Lade Live-Status...
+    </p>
+</div>
+
+<script>
+(function() {
+    'use strict';
+
+    // --- CONFIGURATION ---
+    const SUPABASE_URL = 'https://wjlroiymmpvwaapboahh.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqbHJvaXltbXB2d2FhcGJvYWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5NDExNDMsImV4cCI6MjA3NTUxNzE0M30.oRDURzRrudCmNAis4ZACxPsbWJwdxHt5Nw49phamZO4';
+    const WIDGET_CONTAINER_ID = 'pfoten-event-status-widget-container';
+    const SUPABASE_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+
+    // A reference to the global supabase object
+    let supabase;
+
+    /** Dynamically loads the Supabase client script. */
+    function loadSupabaseClient() {
+        return new Promise((resolve, reject) => {
+            if (window.supabase && typeof window.supabase.createClient === 'function') {
+                supabase = window.supabase;
+                return resolve();
+            }
+            const existingScript = document.querySelector(`script[src="${SUPABASE_SCRIPT_URL}"]`);
+            if (existingScript) {
+                const loadHandler = () => {
+                    supabase = window.supabase;
+                    resolve();
+                    existingScript.removeEventListener('load', loadHandler);
+                };
+                existingScript.addEventListener('load', loadHandler);
+                existingScript.addEventListener('error', () => reject(new Error('Supabase script failed to load.')));
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = SUPABASE_SCRIPT_URL;
+            script.async = true;
+            script.onload = () => {
+                supabase = window.supabase;
+                resolve();
+            };
+            script.onerror = () => reject(new Error('Supabase script failed to load.'));
+            document.head.appendChild(script);
+        });
+    }
+
+    /** Injects the necessary CSS styles into the document's head. */
+    function injectCSS() {
+        if (document.getElementById('pfoten-widget-styles')) return;
+        const css = `
+            #${WIDGET_CONTAINER_ID} .status-banner {
+                display: flex; align-items: center; gap: 1rem; padding: 1rem;
+                border-radius: 8px; color: white;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            }
+            #${WIDGET_CONTAINER_ID} .status-banner.is-active { background: linear-gradient(135deg, #28a745, #218838); }
+            #${WIDGET_CONTAINER_ID} .status-banner.is-cancelled { background: linear-gradient(135deg, #dc3545, #c82333); }
+            #${WIDGET_CONTAINER_ID} .status-banner.is-partial { background: linear-gradient(135deg, #28a745, #ffc107, #dc3545); }
+            #${WIDGET_CONTAINER_ID} .status-banner-icon { flex-shrink: 0; width: 24px; height: 24px; }
+            #${WIDGET_CONTAINER_ID} .status-banner-content { flex-grow: 1; }
+            #${WIDGET_CONTAINER_ID} .status-banner-message { margin: 0; font-weight: 600; font-size: 1.1rem; line-height: 1.4; white-space: pre-wrap; }
+            #${WIDGET_CONTAINER_ID} .status-banner-time { margin: 0.25rem 0 0; font-size: 0.85rem; opacity: 0.8; line-height: 1.2; }
+        `;
+        const style = document.createElement('style');
+        style.id = 'pfoten-widget-styles';
+        style.type = 'text/css';
+        style.appendChild(document.createTextNode(css));
+        document.head.appendChild(style);
+    }
+
+    /** Formats a date object into a local time string. */
+    const formatStatusTime = (date) => new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' }).format(date) + ' Uhr';
+
+    /** Renders content inside the widget container. */
+    function render(htmlContent) {
+        const container = document.getElementById(WIDGET_CONTAINER_ID);
+        if (container) {
+            container.innerHTML = htmlContent;
+        }
+    }
+
+    /** Renders the status banner based on data from Supabase. */
+    function renderBanner(statusData) {
+        if (!statusData || !statusData.status) {
+            render('');
+            return;
+        }
+        const isCancelled = statusData.status === 'cancelled';
+        const isPartial = statusData.status === 'partial';
+        const bannerClass = `status-banner ${isCancelled ? 'is-cancelled' : isPartial ? 'is-partial' : 'is-active'}`;
+        const defaultMessage = isCancelled 
+            ? 'Die Hundeschule fällt aus.' 
+            : isPartial 
+            ? 'Einschränkungen im Betrieb. Bitte Details beachten.'
+            : 'Alle Stunden finden wie geplant statt.';
+            
+        const checkIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-banner-icon"><path d="M20 6 9 17l-5-5"/></svg>`;
+        const crossIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-banner-icon"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+        const warningIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-banner-icon"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`;
+
+        const bannerHtml = `
+            <div class="${bannerClass}" role="alert" aria-live="polite">
+                ${isCancelled ? crossIcon : isPartial ? warningIcon : checkIcon}
+                <div class="status-banner-content">
+                    <p class="status-banner-message">${statusData.message || defaultMessage}</p>
+                    <p class="status-banner-time">
+                        Status aktualisiert um ${formatStatusTime(new Date(statusData.updated_at))}
+                    </p>
+                </div>
+            </div>`;
+        render(bannerHtml);
+    }
+    
+    /** Renders an error message inside the widget container. */
+    function renderError(message) {
+        const errorHtml = `
+            <div style="font-family: sans-serif; color: #721c24; padding: 1rem; text-align: center; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px;">
+                ${message}
+            </div>`;
+        render(errorHtml);
+    }
+
+    /** Main function to initialize the widget. */
+    async function main() {
+        injectCSS();
+        try {
+            await loadSupabaseClient();
+            
+            if (!supabase || typeof supabase.createClient !== 'function') {
+                throw new Error("Supabase-Client konnte nicht initialisiert werden.");
+            }
+            
+            const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+            const { data: initialStatus, error } = await supabaseClient
+                .from('app_status')
+                .select('*')
+                .eq('id', 1)
+                .maybeSingle();
+
+            if (error) throw error;
+            
+            renderBanner(initialStatus);
+            
+            supabaseClient.channel('app_status_changes_widget')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'app_status', filter: 'id=eq.1' }, 
+                    (payload) => renderBanner(payload.new)
+                )
+                .subscribe((status, err) => {
+                    if (err) console.error('[Status Widget] Subscription Error:', err);
+                });
+
+        } catch (error) {
+            console.error('[Status Widget] Initialization failed:', error);
+            renderError("Live-Status konnte nicht geladen werden.");
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', main);
+    } else {
+        main();
+    }
+})();
+</script>
+<!-- Ende: Pfoten-Event Live-Status Widget -->

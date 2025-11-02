@@ -61,7 +61,7 @@ interface Booking {
 
 interface AppStatus {
     id: number;
-    status: 'active' | 'cancelled';
+    status: 'active' | 'cancelled' | 'partial';
     message: string | null;
     updated_at: string;
 }
@@ -78,7 +78,7 @@ const api = {
         }
         return data;
     },
-    updateAppStatus: async (status: 'active' | 'cancelled', message: string): Promise<AppStatus> => {
+    updateAppStatus: async (status: 'active' | 'cancelled' | 'partial', message: string): Promise<AppStatus> => {
         // The `updated_at` field is now exclusively managed by the database trigger `on_app_status_update`.
         // Removing it from the client-side payload prevents potential conflicts and relies on the DB as the source of truth.
         const { data, error } = await supabase.from('app_status').upsert({
@@ -441,10 +441,13 @@ const LiveStatusBanner = ({ statusData }) => {
     }
 
     const isCancelled = statusData.status === 'cancelled';
-    const bannerClass = `status-banner ${isCancelled ? 'is-cancelled' : 'is-active'}`;
+    const isPartial = statusData.status === 'partial';
+    const bannerClass = `status-banner ${isCancelled ? 'is-cancelled' : isPartial ? 'is-partial' : 'is-active'}`;
     const defaultMessage = isCancelled
-        ? 'Alle Events sind zurzeit unterbrochen.'
-        : 'Alle Events finden wie geplant statt.';
+        ? 'Die Hundeschule fällt aus.'
+        : isPartial
+        ? 'Einschränkungen im Betrieb. Bitte Details beachten.'
+        : 'Alle Stunden finden wie geplant statt.';
 
     const CheckIcon = () => html`
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-banner-icon">
@@ -456,10 +459,15 @@ const LiveStatusBanner = ({ statusData }) => {
             <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
         </svg>
     `;
+    const WarningIcon = () => html`
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-banner-icon">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>
+        </svg>
+    `;
 
     return html`
         <div class=${bannerClass} role="alert" aria-live="polite">
-            ${isCancelled ? html`<${CrossIcon} />` : html`<${CheckIcon} />`}
+            ${isCancelled ? html`<${CrossIcon} />` : isPartial ? html`<${WarningIcon} />` : html`<${CheckIcon} />`}
             <div class="status-banner-content">
                 <p class="status-banner-message">${statusData.message || defaultMessage}</p>
                 <p class="status-banner-time">
@@ -1100,7 +1108,7 @@ const CsvImportModal = ({ onImport, onClose }) => {
 };
 
 const LiveStatusManager = () => {
-    const [status, setStatus] = useState<'active' | 'cancelled'>('active');
+    const [status, setStatus] = useState<'active' | 'cancelled' | 'partial'>('active');
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -1151,14 +1159,21 @@ const LiveStatusManager = () => {
                         class=${`btn ${status === 'active' ? 'btn-success' : 'btn-secondary'}`}
                         onClick=${() => setStatus('active')}
                     >
-                        Betrieb aktiv / Events finden statt
+                        Betrieb aktiv
+                    </button>
+                    <button 
+                        type="button" 
+                        class=${`btn ${status === 'partial' ? 'btn-warning' : 'btn-secondary'}`}
+                        onClick=${() => setStatus('partial')}
+                    >
+                        Teilweiser Betrieb / Einschränkungen
                     </button>
                     <button 
                         type="button" 
                         class=${`btn ${status === 'cancelled' ? 'btn-danger' : 'btn-secondary'}`}
                         onClick=${() => setStatus('cancelled')}
                     >
-                        Betrieb unterbrochen / Events abgesagt
+                        Betrieb unterbrochen
                     </button>
                 </div>
                 <div class="form-group">
@@ -1167,7 +1182,11 @@ const LiveStatusManager = () => {
                         id="status-message" 
                         value=${message}
                         onInput=${e => setMessage(e.target.value)}
-                        placeholder=${status === 'active' ? 'z.B. Alle Kurse finden wie geplant statt!' : 'z.B. Wegen starkem Regen vorübergehend geschlossen.'}
+                        placeholder=${
+                            status === 'active' ? 'Standard: Alle Stunden finden wie geplant statt.' :
+                            status === 'partial' ? 'z.B. Welpenstunde findet statt, Level 2 fällt aus.' :
+                            'Standard: Die Hundeschule fällt aus.'
+                        }
                     ></textarea>
                 </div>
                 <div class="form-footer">

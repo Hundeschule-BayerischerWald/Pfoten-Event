@@ -7,6 +7,7 @@
     --border-color: #dee2e6;
     --success-color: #28a745;
     --error-color: #dc3545;
+    --warning-color: #ffc107;
     --disabled-color: #e9ecef;
     --background-color: #f4f1ee;
     --surface-color: #ffffff;
@@ -486,6 +487,15 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 .btn-success:hover {
     background-color: #218838;
 }
+
+.btn-warning {
+    background-color: var(--warning-color);
+    color: var(--text-on-colored-bg);
+}
+.btn-warning:hover {
+    background-color: #e0a800;
+}
+
 
 .btn:disabled {
     background-color: var(--disabled-color);
@@ -1190,6 +1200,9 @@ input[type="file"] {
 .status-banner.is-cancelled {
     background: linear-gradient(135deg, #dc3545, #c82333);
 }
+.status-banner.is-partial {
+    background: linear-gradient(135deg, #28a745, #ffc107, #dc3545);
+}
 .status-banner-icon {
     flex-shrink: 0;
 }
@@ -1200,6 +1213,7 @@ input[type="file"] {
     margin: 0;
     font-weight: 600;
     font-size: 1.1rem;
+    white-space: pre-wrap; /* Allows line breaks */
 }
 .status-banner-time {
     margin: 0.25rem 0 0;
