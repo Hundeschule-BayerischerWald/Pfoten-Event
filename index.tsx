@@ -1933,32 +1933,6 @@ const AdminLoginModal = ({ onClose }) => {
     `;
 };
 
-const StatusWidgetView = () => {
-    const [appStatus, setAppStatus] = useState<AppStatus | null>(null);
-
-    useEffect(() => {
-        // Fetch initial status and subscribe to realtime updates
-        api.getAppStatus()
-           .then(setAppStatus)
-           .catch(err => {
-                console.error("Widget: Could not load initial app status.", err.message);
-           });
-
-        const channel = api.subscribeToAppStatus((newStatus) => {
-            setAppStatus(newStatus);
-        });
-
-        // Cleanup subscription on component unmount
-        return () => {
-            if (channel) {
-                supabase.removeChannel(channel);
-            }
-        };
-    }, []);
-
-    return html`<${LiveStatusBanner} statusData=${appStatus} />`;
-};
-
 
 const App = () => {
     const [view, setView] = useState('booking');
@@ -2005,11 +1979,7 @@ const App = () => {
         const params = new URLSearchParams(window.location.search);
         const viewParam = params.get('view');
         const bookingIdParam = params.get('bookingId');
-
-        if (viewParam === 'widget') {
-            setView('widget');
-            document.body.classList.add('widget-view');
-        } else if (viewParam === 'manage' && bookingIdParam) {
+        if (viewParam === 'manage' && bookingIdParam) {
             setView('manage');
             setInitialBookingId(bookingIdParam);
         }
@@ -2058,11 +2028,6 @@ const App = () => {
         // We've used the prompt, and can't use it again. Clear it.
         setInstallPromptEvent(null);
     };
-
-    // If the view is 'widget', render only the widget and nothing else.
-    if (view === 'widget') {
-        return html`<${StatusWidgetView} />`;
-    }
 
     return html`
         <header class="booking-tool-header">

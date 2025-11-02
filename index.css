@@ -1371,21 +1371,3 @@ input[type="file"] {
         flex-direction: column;
     }
 }
-
-/* --- Widget View Styles for Embedding --- */
-body.widget-view {
-    background-color: transparent; /* Allows iframe to be transparent */
-}
-
-body.widget-view #app {
-    padding: 0;
-    margin: 0;
-    max-width: none;
-}
-
-/* In widget view, the banner should not have a margin-bottom */
-body.widget-view .status-banner {
-    margin-bottom: 0;
-    border-radius: 0; /* Let the iframe handle the border radius */
-    box-shadow: none; /* Let the parent page handle shadows */
-}
