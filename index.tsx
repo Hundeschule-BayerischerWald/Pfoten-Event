@@ -69,11 +69,7 @@ interface AppStatus {
 interface PromoModalData {
     id: number;
     is_active: boolean;
-    title: string;
-    content: string;
     image_url: string | null;
-    cta_text: string | null;
-    cta_url: string | null;
     updated_at: string;
 }
 
@@ -83,7 +79,7 @@ const api = {
     getPromoModal: async (): Promise<PromoModalData | null> => {
         const { data, error } = await supabase
             .from('promo_modal')
-            .select('*')
+            .select('id, is_active, image_url, updated_at')
             .eq('is_active', true)
             .order('updated_at', { ascending: false })
             .limit(1)
@@ -462,24 +458,13 @@ const toInputTimeString = (date: Date): string => {
 // --- KOMPONENTEN ---
 
 const PromoModal = ({ data, onClose }) => {
+    if (!data.image_url) return null;
+
     return html`
         <div class="promo-modal-overlay" onClick=${onClose}>
             <div class="promo-modal-content" onClick=${e => e.stopPropagation()}>
                 <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
-                ${data.image_url && html`
-                    <img src=${data.image_url} alt="Promotion Banner" class="promo-modal-image" />
-                `}
-                <div class="promo-modal-body">
-                    <h2>${data.title}</h2>
-                    ${data.content && html`<p>${data.content}</p>`}
-                </div>
-                ${data.cta_text && data.cta_url && html`
-                    <div class="promo-modal-footer">
-                        <a href=${data.cta_url} target="_blank" rel="noopener noreferrer" class="btn btn-primary">
-                            ${data.cta_text}
-                        </a>
-                    </div>
-                `}
+                <img src=${data.image_url} alt="Aktueller Flyer" class="promo-modal-image" />
             </div>
         </div>
     `;
