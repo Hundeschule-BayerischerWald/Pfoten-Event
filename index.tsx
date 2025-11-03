@@ -1664,6 +1664,7 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
                                         <div class="manage-event-details">
                                             <strong>${event.title}</strong>
                                             <span>${formatDate(event.date)} - ${formatTime(event.date)}</span>
+                                            <span>Treffpunkt: ${event.location}</span>
                                             ${!canCancel && html`<small class="cancel-warning">Stornierung nicht mehr möglich</small>`}
                                         </div>
                                         <button class="btn btn-danger" onClick=${() => handleEventToggle(event.id)} disabled=${!canCancel}>Stornieren</button>
@@ -1684,6 +1685,7 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
                                         <div class="manage-event-details">
                                             <strong>${event.title}</strong>
                                             <span>${formatDate(event.date)} - ${formatTime(event.date)}</span>
+                                            <span>Treffpunkt: ${event.location}</span>
                                             <small>${event.total_capacity - event.booked_capacity} Plätze frei</small>
                                         </div>
                                         <button class="btn btn-success" onClick=${() => handleEventToggle(event.id)}>Buchen</button>
