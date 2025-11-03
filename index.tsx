@@ -66,9 +66,35 @@ interface AppStatus {
     updated_at: string;
 }
 
+interface PromoModalData {
+    id: number;
+    is_active: boolean;
+    title: string;
+    content: string;
+    image_url: string | null;
+    cta_text: string | null;
+    cta_url: string | null;
+    updated_at: string;
+}
+
 
 // --- API-SCHICHT (Supabase) ---
 const api = {
+    getPromoModal: async (): Promise<PromoModalData | null> => {
+        const { data, error } = await supabase
+            .from('promo_modal')
+            .select('*')
+            .eq('is_active', true)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (error) {
+            console.error('Error fetching promo modal:', error);
+            return null; // Don't block the app for a promo
+        }
+        return data;
+    },
     getAppStatus: async (): Promise<AppStatus | null> => {
         // Fetches the single status row. Assumes id=1 for the single status entry.
         const { data, error } = await supabase.from('app_status').select('*').eq('id', 1).maybeSingle();
@@ -434,6 +460,30 @@ const toInputTimeString = (date: Date): string => {
 
 
 // --- KOMPONENTEN ---
+
+const PromoModal = ({ data, onClose }) => {
+    return html`
+        <div class="promo-modal-overlay" onClick=${onClose}>
+            <div class="promo-modal-content" onClick=${e => e.stopPropagation()}>
+                <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
+                ${data.image_url && html`
+                    <img src=${data.image_url} alt="Promotion Banner" class="promo-modal-image" />
+                `}
+                <div class="promo-modal-body">
+                    <h2>${data.title}</h2>
+                    ${data.content && html`<p>${data.content}</p>`}
+                </div>
+                ${data.cta_text && data.cta_url && html`
+                    <div class="promo-modal-footer">
+                        <a href=${data.cta_url} target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                            ${data.cta_text}
+                        </a>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+};
 
 const LiveStatusBanner = ({ statusData }) => {
     if (!statusData || !statusData.status) {
@@ -1960,8 +2010,24 @@ const App = () => {
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [initialBookingId, setInitialBookingId] = useState<string | null>(null);
     const [installPromptEvent, setInstallPromptEvent] = useState(null);
+    const [promoModalData, setPromoModalData] = useState<PromoModalData | null>(null);
+    const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
+
 
     useEffect(() => {
+        // --- Promo Modal Logic ---
+        const checkPromoModal = async () => {
+            const data = await api.getPromoModal();
+            if (data) {
+                const lastSeenTimestamp = localStorage.getItem('seenPromoModalTimestamp');
+                if (!lastSeenTimestamp || new Date(data.updated_at) > new Date(lastSeenTimestamp)) {
+                    setPromoModalData(data);
+                    setIsPromoModalOpen(true);
+                }
+            }
+        };
+        checkPromoModal();
+
         // Service Worker Registration for PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -2047,6 +2113,13 @@ const App = () => {
         // We've used the prompt, and can't use it again. Clear it.
         setInstallPromptEvent(null);
     };
+    
+    const handleClosePromoModal = () => {
+        if (promoModalData) {
+            localStorage.setItem('seenPromoModalTimestamp', promoModalData.updated_at);
+        }
+        setIsPromoModalOpen(false);
+    };
 
     return html`
         <header class="booking-tool-header">
@@ -2101,6 +2174,13 @@ const App = () => {
         ${isLoginModalOpen && html`
             <${AdminLoginModal} 
                 onClose=${() => setIsLoginModalOpen(false)}
+            />
+        `}
+        
+        ${isPromoModalOpen && promoModalData && html`
+            <${PromoModal}
+                data=${promoModalData}
+                onClose=${handleClosePromoModal}
             />
         `}
     `;
