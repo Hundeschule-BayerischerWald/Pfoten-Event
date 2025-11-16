@@ -84,6 +84,39 @@ function createEmailHtml(title: string, customerName: string, bookingId: string,
   `;
 }
 
+function createNoShowEmailHtml(customerName: string, event: any) {
+    const text = `Hallo ${customerName},
+
+uns ist aufgefallen, dass du bei der Stunde "${event.title}" am ${event.date} nicht dabei warst.
+
+Wir hoffen, bei dir und deinem Hund ist alles in Ordnung!
+
+Manchmal kommt einfach etwas dazwischen – sei es Krankheit, ein Notfall oder man hat den Termin schlicht vergessen.
+
+Damit wir besser planen können, wäre es super, wenn du uns kurz wissen lässt, woran es lag. Eine kurze Antwort auf diese E-Mail genügt völlig.
+
+Liebe Grüße und bis hoffentlich bald,
+dein Team der Hundeschule Bayerischer Wald`;
+
+    // Simple HTML conversion with line breaks
+    const htmlBody = text.split('\n\n').map(p => `<p style="margin: 0 0 1em 0; line-height: 1.6;">${p.replace(/\n/g, '<br>')}</p>`).join('');
+
+    return `
+        <!DOCTYPE html><html><head><style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+        .content { padding: 20px 30px; }
+        .header { font-size: 24px; color: #ffc107; margin: 0 0 20px; }
+        </style></head><body><div class="container">
+        <img src="${EMAIL_HEADER_IMAGE_URL}" alt="Hundeschule Banner" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
+        <div class="content">
+            <h1 class="header">Wir haben dich vermisst!</h1>
+            ${htmlBody}
+        </div></div></body></html>
+    `;
+}
+
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }});
@@ -95,36 +128,73 @@ serve(async (req) => {
         throw new Error("RESEND_API_KEY ist nicht in den Supabase Secrets gesetzt.");
     }
 
-    const { type, customerName, customerEmail, bookingId, events } = await req.json();
+    const { type, customerName, customerEmail, bookingId, events, event } = await req.json();
     console.log(`[send-smtp-email] Processing request for ${customerEmail}, type: ${type}`);
-
-    // Fetch PDF attachment
-    let pdfAttachment;
-    try {
-        console.log(`[send-smtp-email] Fetching PDF attachment from: ${PDF_ATTACHMENT_URL}`);
-        const pdfResponse = await fetch(PDF_ATTACHMENT_URL);
-        if (pdfResponse.ok) {
-            const pdfArrayBuffer = await pdfResponse.arrayBuffer();
-            const pdfBase64 = Buffer.from(pdfArrayBuffer).toString('base64');
-            pdfAttachment = {
-                filename: 'Wichtige-Infos-zur-Anmeldung.pdf',
-                content: pdfBase64,
-            };
-            console.log("[send-smtp-email] Successfully fetched and encoded PDF attachment.");
-        } else {
-            console.warn(`[send-smtp-email] Failed to fetch PDF. Status: ${pdfResponse.status}. Email will be sent without attachment.`);
-        }
-    } catch (pdfError) {
-        console.error("[send-smtp-email] Error fetching or processing PDF attachment:", pdfError.message);
-    }
-
-    const subject = type === 'new-booking' ? 'Deine Buchungsbestätigung für die Hundeschule' : 'Deine Buchung wurde aktualisiert';
-    const title = type === 'new-booking' ? 'Buchung erfolgreich!' : 'Deine Buchung wurde aktualisiert';
     
-    const manageUrl = `https://pfoten-event.vercel.app/?view=manage&bookingId=${bookingId}`;
-    const htmlContent = createEmailHtml(title, customerName, bookingId, events, manageUrl, type);
+    let subject, htmlContent;
 
-    const emailPayload: any = {
+    if (type === 'no-show') {
+      subject = 'Wir haben dich vermisst!';
+      htmlContent = createNoShowEmailHtml(customerName, event);
+    } else {
+        // Fetch PDF attachment only for new/update bookings
+        let pdfAttachment;
+        try {
+            console.log(`[send-smtp-email] Fetching PDF attachment from: ${PDF_ATTACHMENT_URL}`);
+            const pdfResponse = await fetch(PDF_ATTACHMENT_URL);
+            if (pdfResponse.ok) {
+                const pdfArrayBuffer = await pdfResponse.arrayBuffer();
+                const pdfBase64 = Buffer.from(pdfArrayBuffer).toString('base64');
+                pdfAttachment = {
+                    filename: 'Wichtige-Infos-zur-Anmeldung.pdf',
+                    content: pdfBase64,
+                };
+                console.log("[send-smtp-email] Successfully fetched and encoded PDF attachment.");
+            } else {
+                console.warn(`[send-smtp-email] Failed to fetch PDF. Status: ${pdfResponse.status}. Email will be sent without attachment.`);
+            }
+        } catch (pdfError) {
+            console.error("[send-smtp-email] Error fetching or processing PDF attachment:", pdfError.message);
+        }
+
+        subject = type === 'new-booking' ? 'Deine Buchungsbestätigung für die Hundeschule' : 'Deine Buchung wurde aktualisiert';
+        const title = type === 'new-booking' ? 'Buchung erfolgreich!' : 'Deine Buchung wurde aktualisiert';
+        const manageUrl = `https://pfoten-event.vercel.app/?view=manage&bookingId=${bookingId}`;
+        htmlContent = createEmailHtml(title, customerName, bookingId, events, manageUrl, type);
+        
+        if (pdfAttachment) {
+            // Attach PDF to email payload if it was fetched successfully
+            const emailPayload: any = {
+                from: FROM_EMAIL,
+                to: customerEmail,
+                subject: subject,
+                html: htmlContent,
+                reply_to: REPLY_TO_EMAIL,
+                attachments: [pdfAttachment]
+            };
+            
+            console.log(`[send-smtp-email] Attempting to send email to ${customerEmail} via Resend API.`);
+            const resendResponse = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}` },
+                body: JSON.stringify(emailPayload),
+            });
+            
+            const responseData = await resendResponse.json();
+            if (!resendResponse.ok) {
+                console.error("[send-smtp-email] Resend API Error:", responseData);
+                throw new Error(`Resend API returned status ${resendResponse.status}`);
+            }
+            console.log("[send-smtp-email] Email sent successfully via Resend:", responseData.id);
+
+            return new Response(JSON.stringify({ message: 'Email sent successfully!' }), {
+              status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            });
+        }
+    }
+    
+    // Fallback for no-show or if PDF attachment fails for other types
+    const emailPayload = {
         from: FROM_EMAIL,
         to: customerEmail,
         subject: subject,
@@ -132,11 +202,7 @@ serve(async (req) => {
         reply_to: REPLY_TO_EMAIL
     };
     
-    if (pdfAttachment) {
-        emailPayload.attachments = [pdfAttachment];
-    }
-    
-    console.log(`[send-smtp-email] Attempting to send email to ${customerEmail} via Resend API.`);
+    console.log(`[send-smtp-email] Attempting to send email (no attachment) to ${customerEmail} via Resend API.`);
     const resendResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {

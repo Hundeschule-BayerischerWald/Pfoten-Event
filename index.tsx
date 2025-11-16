@@ -895,25 +895,55 @@ const ConfirmDeleteModal = ({ onConfirm, onClose, error, loading }) => {
     `;
 };
 
+const ConfirmActionModal = ({ isOpen, onClose, onConfirm, title, message, confirmText, loading, error }) => {
+    if (!isOpen) return null;
+
+    return html`
+        <div class="modal-overlay" onClick=${onClose}>
+            <div class="modal-content" onClick=${e => e.stopPropagation()}>
+                <div class="modal-header">
+                    <h2>${title}</h2>
+                    <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
+                </div>
+                <div class="modal-body">
+                    <p>${message}</p>
+                    ${error && html`<p class="error-message">${error}</p>`}
+                </div>
+                <div class="modal-footer">
+                     <button type="button" class="btn btn-secondary" onClick=${onClose} disabled=${loading}>Abbrechen</button>
+                     <button type="button" class="btn btn-warning" onClick=${onConfirm} disabled=${loading}>
+                        ${loading ? 'Sendet...' : confirmText}
+                     </button>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+
 const BookingOverview = () => {
     const [eventsWithBookings, setEventsWithBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, data: null, error: '' });
+    const [sentEmails, setSentEmails] = useState(new Set());
+    const [isSending, setIsSending] = useState(false);
 
     useEffect(() => {
         const loadBookings = async () => {
             setLoading(true);
             setError('');
             try {
-                // Fetch future events and their related bookings and customers
+                // Fetch all events, sorted chronologically
                 const { data, error: fetchError } = await supabase
                     .from('events')
                     .select('*, bookings_events(bookings(*, customers(*)))')
-                    .gte('date', new Date().toISOString())
                     .order('date', { ascending: true });
 
                 if (fetchError) throw fetchError;
-
+                
+                // The data from the database is already sorted chronologically (past and future),
+                // which fulfills the user's request.
                 setEventsWithBookings(data);
             } catch (err) {
                 setError('Fehler beim Laden der Buchungsübersicht.');
@@ -925,6 +955,44 @@ const BookingOverview = () => {
 
         loadBookings();
     }, []);
+    
+    const handleOpenConfirmation = (customer, event) => {
+        setConfirmModalState({ isOpen: true, data: { customer, event }, error: '' });
+    };
+
+    const handleCloseConfirmation = () => {
+        setConfirmModalState({ isOpen: false, data: null, error: '' });
+    };
+    
+    const handleSendNoShowEmail = async () => {
+        if (!confirmModalState.data) return;
+        
+        setIsSending(true);
+        setConfirmModalState(prev => ({ ...prev, error: '' })); // Clear previous error
+        const { customer, event } = confirmModalState.data;
+        const sentKey = `${event.id}-${customer.id}`;
+        
+        try {
+            await supabase.functions.invoke('send-smtp-email', {
+                body: {
+                    type: 'no-show',
+                    customerName: customer.name,
+                    customerEmail: customer.email,
+                    event: {
+                        title: event.title,
+                        date: new Date(event.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr'
+                    }
+                }
+            });
+            setSentEmails(prev => new Set(prev).add(sentKey));
+            handleCloseConfirmation();
+        } catch (err) {
+             setConfirmModalState(prev => ({ ...prev, error: "E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut." }));
+        } finally {
+            setIsSending(false);
+        }
+    };
+
 
     if (loading) {
         return html`<div class="loading-state">Lade Buchungsübersicht...</div>`;
@@ -933,7 +1001,7 @@ const BookingOverview = () => {
         return html`<p class="error-message">${error}</p>`;
     }
     if (eventsWithBookings.length === 0) {
-        return html`<p class="empty-state">Keine zukünftigen Events mit Buchungen gefunden.</p>`;
+        return html`<p class="empty-state">Keine Events mit Buchungen gefunden.</p>`;
     }
 
     return html`
@@ -944,13 +1012,15 @@ const BookingOverview = () => {
                     .filter(Boolean); // Filter out any null/undefined customers
                 
                 const categoryClass = `event-category-${event.category.toLowerCase()}`;
+                const eventDate = new Date(event.date);
+                const isPastOneHour = new Date() > new Date(eventDate.getTime() + 60 * 60 * 1000);
 
                 return html`
                     <div class="overview-event-group" key=${event.id}>
                         <div class=${`overview-event-header ${categoryClass}`}>
                             <div class="overview-event-info">
                                 <strong class="overview-event-title">${event.title}</strong>
-                                <span class="overview-event-details">${formatDate(new Date(event.date))} - ${formatTime(new Date(event.date))}</span>
+                                <span class="overview-event-details">${formatDate(eventDate)} - ${formatTime(eventDate)}</span>
                                 <span class="overview-event-details">Treffpunkt: ${event.location}</span>
                             </div>
                             <div class="overview-event-capacity">
@@ -970,7 +1040,11 @@ const BookingOverview = () => {
 
                         ${participants.length > 0 ? html`
                             <ul class="participant-list">
-                                ${participants.map(customer => html`
+                                ${participants.map(customer => {
+                                    const sentKey = `${event.id}-${customer.id}`;
+                                    const emailSent = sentEmails.has(sentKey);
+                                    
+                                    return html`
                                     <li key=${customer.id}>
                                         <div class="participant-info">
                                             <strong>${customer.name}</strong> (Hund: ${customer.dog_name})
@@ -979,8 +1053,19 @@ const BookingOverview = () => {
                                             <span>${customer.email}</span>
                                             <span>${customer.phone}</span>
                                         </div>
+                                        ${isPastOneHour && html`
+                                            <div class="participant-actions">
+                                                ${emailSent ? html`
+                                                    <button class="btn btn-success" disabled>✔️ E-Mail gesendet</button>
+                                                ` : html`
+                                                    <button class="btn btn-warning" onClick=${() => handleOpenConfirmation(customer, event)}>
+                                                        'Nicht erschienen'-Mail
+                                                    </button>
+                                                `}
+                                            </div>
+                                        `}
                                     </li>
-                                `)}
+                                `})}
                             </ul>
                         ` : html`
                             <p class="no-participants-message">Für dieses Event gibt es noch keine Anmeldungen.</p>
@@ -989,6 +1074,16 @@ const BookingOverview = () => {
                 `;
             })}
         </div>
+        <${ConfirmActionModal} 
+            isOpen=${confirmModalState.isOpen}
+            onClose=${handleCloseConfirmation}
+            onConfirm=${handleSendNoShowEmail}
+            title="Bestätigung erforderlich"
+            message=${`Möchtest du wirklich eine 'Nicht erschienen'-Mail an ${confirmModalState.data?.customer.name} senden?`}
+            confirmText="Ja, E-Mail senden"
+            loading=${isSending}
+            error=${confirmModalState.error}
+        />
     `;
 };
 
@@ -1254,8 +1349,9 @@ const AdminPanel = () => {
     const loadEvents = async () => {
         setLoading(true);
         const eventsFromApi = await api.getEvents();
-        const now = new Date();
-        const futureEvents = eventsFromApi.filter(e => new Date(e.date) >= now);
+        const today = new Date();
+        const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const futureEvents = eventsFromApi.filter(e => new Date(e.date) >= startOfToday);
         setEvents(futureEvents);
         setLoading(false);
     };
@@ -1590,15 +1686,17 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
 
     const { bookedEvents, availableEvents } = useMemo(() => {
         if (!booking) return { bookedEvents: [], availableEvents: [] };
-        const now = new Date();
+        const today = new Date();
+        const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        
         const booked = allEvents
-            .filter(e => managedEventIds.includes(e.id) && e.date >= now)
+            .filter(e => managedEventIds.includes(e.id) && new Date(e.date) >= startOfToday)
             .sort((a, b) => a.date.getTime() - b.date.getTime());
 
         const available = allEvents
             .filter(e => {
                 if (managedEventIds.includes(e.id)) return false; // Already in selection
-                if (e.date < now) return false; // In the past
+                if (new Date(e.date) < startOfToday) return false; // In the past
                 if (e.booked_capacity >= e.total_capacity) return false; // Full
                 return true;
             })
@@ -1818,9 +1916,11 @@ const CustomerBookingView = ({ setView }) => {
     }
     
     const { eventsByWeek, selectedEvents } = useMemo(() => {
-        const now = new Date();
+        const today = new Date();
+        const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
         const futureEvents = allEvents
-            .filter(event => event.date >= now)
+            .filter(event => new Date(event.date) >= startOfToday)
             .sort((a, b) => a.date.getTime() - b.date.getTime());
 
         const groupedByWeek = futureEvents.reduce((acc, event) => {
@@ -1856,7 +1956,8 @@ const CustomerBookingView = ({ setView }) => {
         return html`<div class="loading-state">Lade Eventtermine...</div>`;
     }
     
-    const now = new Date();
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     
     return html`
         <main class="main-container">
@@ -1873,7 +1974,7 @@ const CustomerBookingView = ({ setView }) => {
                                 <h3 class="week-header">${weekGroup.weekHeader}</h3>
                                 <ul class="event-list">
                                     ${weekGroup.events.map(event => {
-                                        const isPast = event.date < now;
+                                        const isPast = new Date(event.date) < startOfToday;
                                         return html`
                                         <${EventItem} 
                                             key=${event.id}
