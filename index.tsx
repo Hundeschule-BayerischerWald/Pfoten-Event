@@ -928,6 +928,9 @@ const BookingOverview = () => {
     const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, data: null, error: '' });
     const [sentEmails, setSentEmails] = useState(new Set());
     const [isSending, setIsSending] = useState(false);
+    const [testEmail, setTestEmail] = useState('');
+    const [isSendingTest, setIsSendingTest] = useState(false);
+    const [testMessage, setTestMessage] = useState({ text: '', type: '' });
 
     useEffect(() => {
         const loadBookings = async () => {
@@ -942,9 +945,11 @@ const BookingOverview = () => {
 
                 if (fetchError) throw fetchError;
                 
-                // The data from the database is already sorted chronologically (past and future),
-                // which fulfills the user's request.
-                setEventsWithBookings(data);
+                // Filter out events that are older than 24 hours
+                const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                const recentEvents = data.filter(event => new Date(event.date) >= twentyFourHoursAgo);
+                
+                setEventsWithBookings(recentEvents);
             } catch (err) {
                 setError('Fehler beim Laden der Buchungsübersicht.');
                 console.error(err);
@@ -993,6 +998,35 @@ const BookingOverview = () => {
         }
     };
 
+    const handleSendTestEmail = async (e) => {
+        e.preventDefault();
+        if (!testEmail) {
+            setTestMessage({ text: 'Bitte gib eine E-Mail-Adresse ein.', type: 'error' });
+            return;
+        }
+        setIsSendingTest(true);
+        setTestMessage({ text: '', type: '' });
+
+        try {
+            await supabase.functions.invoke('send-smtp-email', {
+                body: {
+                    type: 'no-show',
+                    customerName: 'Max Mustermann (Test)',
+                    customerEmail: testEmail,
+                    event: {
+                        title: 'Test-Event: Welpenstunde',
+                        date: new Date().toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr'
+                    }
+                }
+            });
+            setTestMessage({ text: `Test-Mail erfolgreich an ${testEmail} gesendet!`, type: 'success' });
+        } catch (err) {
+            setTestMessage({ text: 'Fehler: Test-Mail konnte nicht gesendet werden.', type: 'error' });
+        } finally {
+            setIsSendingTest(false);
+        }
+    };
+
 
     if (loading) {
         return html`<div class="loading-state">Lade Buchungsübersicht...</div>`;
@@ -1000,13 +1034,31 @@ const BookingOverview = () => {
     if (error) {
         return html`<p class="error-message">${error}</p>`;
     }
-    if (eventsWithBookings.length === 0) {
-        return html`<p class="empty-state">Keine Events mit Buchungen gefunden.</p>`;
-    }
 
     return html`
         <div class="booking-overview-container">
-            ${eventsWithBookings.map(event => {
+            <div class="email-test-container">
+                <h4>'Nicht erschienen'-Mail testen</h4>
+                <form class="email-test-form" onSubmit=${handleSendTestEmail}>
+                    <input 
+                        type="email" 
+                        placeholder="Deine E-Mail-Adresse" 
+                        value=${testEmail} 
+                        onInput=${e => setTestEmail(e.target.value)} 
+                        required 
+                    />
+                    <button type="submit" class="btn btn-secondary btn-small" disabled=${isSendingTest}>
+                        ${isSendingTest ? 'Sendet...' : 'Test-Mail senden'}
+                    </button>
+                </form>
+                ${testMessage.text && html`
+                    <p class=${`message ${testMessage.type === 'error' ? 'error-message' : 'success-message'}`}>
+                        ${testMessage.text}
+                    </p>
+                `}
+            </div>
+            ${eventsWithBookings.length === 0 ? html`<p class="empty-state">Keine relevanten Events mit Buchungen gefunden.</p>` :
+            eventsWithBookings.map(event => {
                 const participants = event.bookings_events
                     .map(be => be.bookings?.customers)
                     .filter(Boolean); // Filter out any null/undefined customers

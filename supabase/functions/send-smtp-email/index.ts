@@ -85,21 +85,31 @@ function createEmailHtml(title: string, customerName: string, bookingId: string,
 }
 
 function createNoShowEmailHtml(customerName: string, event: any) {
-    const text = `Hallo ${customerName},
+    const text = `<strong>Hallo ${customerName},</strong>
 
-uns ist aufgefallen, dass du bei der Stunde "${event.title}" am ${event.date} nicht dabei warst.
+uns ist aufgefallen, dass du bei der Stunde „${event.title}“ am ${event.date} nicht dabei warst.
 
 Wir hoffen, bei dir und deinem Hund ist alles in Ordnung!
 
-Manchmal kommt einfach etwas dazwischen – sei es Krankheit, ein Notfall oder man hat den Termin schlicht vergessen.
+Manchmal kommt einfach etwas dazwischen – sei es Krankheit, ein Notfall oder andere wichtige Gründe.
 
 Damit wir besser planen können, wäre es super, wenn du uns kurz wissen lässt, woran es lag. Eine kurze Antwort auf diese E-Mail genügt völlig.
 
-Liebe Grüße und bis hoffentlich bald,
-dein Team der Hundeschule Bayerischer Wald`;
+Auch wenn es die Stornofrist einmal nicht mehr zulässt, gib uns bitte trotzdem kurz Bescheid, falls etwas Wichtiges dazwischenkommt.
+
+<strong>Da in deinem Fall keine Abmeldung innerhalb der Stornofrist erfolgt ist, wird die gebuchte Stunde beim nächsten Mal von einem unserer Mitarbeiter leider von deiner Karte entwertet werden müssen.</strong>
+
+Wir danken dir für dein Verständnis!`;
+
+    const closing = `Liebe Grüße und bis hoffentlich bald,
+dein Team der Hundeschule Bayerischer Wald 
+<br><small>(Bitte antworte direkt auf diese E-Mail. Deine Antwort geht an info@hs-bw.com.)</small>`;
 
     // Simple HTML conversion with line breaks
-    const htmlBody = text.split('\n\n').map(p => `<p style="margin: 0 0 1em 0; line-height: 1.6;">${p.replace(/\n/g, '<br>')}</p>`).join('');
+    const bodyHtml = text.split('\n\n').map(p => `<p style="margin: 0 0 1em 0; line-height: 1.6;">${p.replace(/\n/g, '<br>')}</p>`).join('');
+    const closingHtml = `<p style="margin: 0 0 1em 0; line-height: 1.6;">${closing.replace(/\n/g, '<br>')}</p>`;
+    
+    const htmlBody = bodyHtml + closingHtml;
 
     return `
         <!DOCTYPE html><html><head><style>
@@ -132,23 +142,23 @@ serve(async (req) => {
     console.log(`[send-smtp-email] Processing request for ${customerEmail}, type: ${type}`);
     
     let subject, htmlContent;
+    let attachments = [];
 
     if (type === 'no-show') {
-      subject = 'Wir haben dich vermisst!';
-      htmlContent = createNoShowEmailHtml(customerName, event);
-    } else {
+        subject = 'Wir haben dich vermisst!';
+        htmlContent = createNoShowEmailHtml(customerName, event);
+    } else if (type === 'new-booking' || type === 'update-booking') {
         // Fetch PDF attachment only for new/update bookings
-        let pdfAttachment;
         try {
             console.log(`[send-smtp-email] Fetching PDF attachment from: ${PDF_ATTACHMENT_URL}`);
             const pdfResponse = await fetch(PDF_ATTACHMENT_URL);
             if (pdfResponse.ok) {
                 const pdfArrayBuffer = await pdfResponse.arrayBuffer();
                 const pdfBase64 = Buffer.from(pdfArrayBuffer).toString('base64');
-                pdfAttachment = {
+                attachments.push({
                     filename: 'Wichtige-Infos-zur-Anmeldung.pdf',
                     content: pdfBase64,
-                };
+                });
                 console.log("[send-smtp-email] Successfully fetched and encoded PDF attachment.");
             } else {
                 console.warn(`[send-smtp-email] Failed to fetch PDF. Status: ${pdfResponse.status}. Email will be sent without attachment.`);
@@ -161,48 +171,23 @@ serve(async (req) => {
         const title = type === 'new-booking' ? 'Buchung erfolgreich!' : 'Deine Buchung wurde aktualisiert';
         const manageUrl = `https://pfoten-event.vercel.app/?view=manage&bookingId=${bookingId}`;
         htmlContent = createEmailHtml(title, customerName, bookingId, events, manageUrl, type);
-        
-        if (pdfAttachment) {
-            // Attach PDF to email payload if it was fetched successfully
-            const emailPayload: any = {
-                from: FROM_EMAIL,
-                to: customerEmail,
-                subject: subject,
-                html: htmlContent,
-                reply_to: REPLY_TO_EMAIL,
-                attachments: [pdfAttachment]
-            };
-            
-            console.log(`[send-smtp-email] Attempting to send email to ${customerEmail} via Resend API.`);
-            const resendResponse = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}` },
-                body: JSON.stringify(emailPayload),
-            });
-            
-            const responseData = await resendResponse.json();
-            if (!resendResponse.ok) {
-                console.error("[send-smtp-email] Resend API Error:", responseData);
-                throw new Error(`Resend API returned status ${resendResponse.status}`);
-            }
-            console.log("[send-smtp-email] Email sent successfully via Resend:", responseData.id);
-
-            return new Response(JSON.stringify({ message: 'Email sent successfully!' }), {
-              status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-            });
-        }
+    } else {
+        throw new Error(`Invalid email type: ${type}`);
     }
     
-    // Fallback for no-show or if PDF attachment fails for other types
-    const emailPayload = {
+    const emailPayload: any = {
         from: FROM_EMAIL,
         to: customerEmail,
         subject: subject,
         html: htmlContent,
         reply_to: REPLY_TO_EMAIL
     };
+
+    if (attachments.length > 0) {
+        emailPayload.attachments = attachments;
+    }
     
-    console.log(`[send-smtp-email] Attempting to send email (no attachment) to ${customerEmail} via Resend API.`);
+    console.log(`[send-smtp-email] Attempting to send email to ${customerEmail} via Resend API.`);
     const resendResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
