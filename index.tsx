@@ -10,11 +10,13 @@ import { createClient, Session, RealtimeChannel } from '@supabase/supabase-js';
 const html = htm.bind(h);
 
 // --- SUPABASE KONFIGURATION ---
-// BITTE ERSETZE DIESE WERTE MIT DEINEN EIGENEN SUPABASE PROJEKT-DATEN
-// Du findest sie in deinem Supabase Dashboard unter Project Settings > API
 const supabaseUrl = 'https://wjlroiymmpvwaapboahh.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqbHJvaXltbXB2d2FhcGJvYWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5NDExNDMsImV4cCI6MjA3NTUxNzE0M30.oRDURzRrudCmNAis4ZACxPsbWJwdxHt5Nw49phamZO4';
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// --- PUSH NOTIFICATION KONFIGURATION ---
+// Dein VAPID Public Key
+const VAPID_PUBLIC_KEY = 'BHGjrm6VHcfPC2zdQxLDMgGC3n8y27miG-tlkDlBu0Kd250Pzy50QBXH4M-unooECqvnOyM-xiwxovVuuSMJb5o';
 
 
 // --- KONFIGURATION ---
@@ -32,6 +34,22 @@ const EVENT_CATEGORIES = {
 };
 
 const TRAINERS = ["Christian", "Sophie", "Sandra", "Susi", "Petra"];
+
+// --- HELPER FÜR VAPID KEYS ---
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+ 
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+ 
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 // --- TYPEN & INTERFACES ---
 interface Event {
@@ -428,6 +446,41 @@ const api = {
         
         return data;
     },
+    subscribeToPush: async () => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            throw new Error("Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.");
+        }
+
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+            const convertedVapidKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: convertedVapidKey
+            });
+        }
+
+        const { error } = await supabase.from('push_subscriptions').insert({ subscription: subscription.toJSON() });
+        // Ignore duplicate key errors, that just means already subscribed
+        if (error && error.code !== '23505') {
+            throw error;
+        }
+        return true;
+    },
+    sendPushBroadcast: async (): Promise<{ success: number, failed: number }> => {
+        const { data, error } = await supabase.functions.invoke('send-broadcast-push', {
+            body: {
+                title: 'Neue Events verfügbar!',
+                body: 'Neue Events sind buchbar! Sichere dir jetzt deinen Platz.',
+                url: '/'
+            }
+        });
+
+        if (error) throw new Error(error.message);
+        return data;
+    }
 };
 
 // --- HELPER FUNKTIONEN ---
@@ -1397,6 +1450,9 @@ const AdminPanel = () => {
     const [cleanupLoading, setCleanupLoading] = useState(false);
     const [cleanupMessage, setCleanupMessage] = useState({ text: '', type: '' });
     const [isConfirmingCleanup, setIsConfirmingCleanup] = useState(false);
+    const [isPushSending, setIsPushSending] = useState(false);
+    const [pushMessage, setPushMessage] = useState({ text: '', type: '' });
+
 
     const loadEvents = async () => {
         setLoading(true);
@@ -1476,6 +1532,24 @@ const AdminPanel = () => {
         }
     };
 
+    const handleSendPush = async () => {
+        if(!confirm("Möchtest du wirklich eine Benachrichtigung an alle angemeldeten Kunden senden?")) return;
+        
+        setIsPushSending(true);
+        setPushMessage({ text: '', type: '' });
+        try {
+            const result = await api.sendPushBroadcast();
+            setPushMessage({ 
+                text: `Push gesendet: ${result.success} erfolgreich, ${result.failed} fehlgeschlagen.`,
+                type: 'success'
+            });
+        } catch(err) {
+            setPushMessage({ text: `Fehler: ${err.message}`, type: 'error' });
+        } finally {
+            setIsPushSending(false);
+        }
+    };
+
     const handleSave = async (eventData) => {
         const finalEventData = { ...eventData };
 
@@ -1529,6 +1603,13 @@ const AdminPanel = () => {
                         <div class="admin-header-actions">
                             <button class="btn btn-primary" onClick=${handleAdd}>+ Neues Event</button>
                             <button class="btn btn-secondary" onClick=${() => setIsCsvModalOpen(true)}>CSV Import</button>
+                            
+                            <div class="cleanup-container" style="margin-left: 20px; border-left: 1px solid #ccc; padding-left: 20px;">
+                                <button class="btn btn-warning" onClick=${handleSendPush} disabled=${isPushSending}>
+                                    ${isPushSending ? 'Sendet...' : 'Push an alle senden'}
+                                </button>
+                            </div>
+
                             <div class="cleanup-container">
                                 <div class="cleanup-control">
                                     ${cleanupLoading ? html`
@@ -1550,14 +1631,26 @@ const AdminPanel = () => {
                                         </button>
                                     `}
                                 </div>
-                                ${cleanupMessage.text && html`
-                                    <p class="cleanup-message ${cleanupMessage.type === 'error' ? 'error-message' : 'success-message'}">
-                                        ${cleanupMessage.text}
-                                    </p>
-                                `}
                             </div>
                         </div>
                     </div>
+                    
+                    ${pushMessage.text && html`
+                        <div class="message-container" style="margin-bottom: 1rem; text-align: center;">
+                            <p class="${pushMessage.type === 'error' ? 'error-message' : 'success-message'}">
+                                ${pushMessage.text}
+                            </p>
+                        </div>
+                    `}
+                    ${cleanupMessage.text && html`
+                        <div class="message-container" style="margin-bottom: 1rem; text-align: center;">
+                            <p class="${cleanupMessage.type === 'error' ? 'error-message' : 'success-message'}">
+                                ${cleanupMessage.text}
+                            </p>
+                        </div>
+                    `}
+
+
                      ${loading ? html`<div class="loading-state">Lade Events...</div>` : html`
                         <ul class="admin-event-list">
                             ${events.map(event => html`
@@ -2254,6 +2347,16 @@ const App = () => {
         setInstallPromptEvent(null);
     };
     
+    const handleSubscribePush = async () => {
+        try {
+            await api.subscribeToPush();
+            alert("Benachrichtigungen erfolgreich aktiviert! Du wirst informiert, wenn neue Events verfügbar sind.");
+        } catch (e) {
+            console.error(e);
+            alert("Fehler beim Aktivieren: " + e.message);
+        }
+    };
+    
     const handleClosePromoModal = () => {
         if (promoModalData) {
             localStorage.setItem('seenPromoModalTimestamp', promoModalData.updated_at);
@@ -2307,6 +2410,9 @@ const App = () => {
         
         ${!session && html`
             <footer class="app-footer">
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-secondary btn-small" onClick=${handleSubscribePush}>🔔 Benachrichtigungen aktivieren</button>
+                </div>
                 <button class="admin-login-btn" onClick=${() => setIsLoginModalOpen(true)}>Mitarbeiter Login</button>
             </footer>
         `}

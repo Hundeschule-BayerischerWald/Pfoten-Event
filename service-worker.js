@@ -14,9 +14,7 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Opened cache, caching core assets.');
-        // addAll will fail if any of the files are not available.
-        // Using an individual add and catching errors for non-critical assets might be more robust.
+        // console.log('Opened cache, caching core assets.');
         return Promise.all(
             urlsToCache.map(url => {
                 return cache.add(url).catch(reason => {
@@ -53,11 +51,50 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
-            console.log('Deleting old cache:', cacheName);
+            // console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
+    })
+  );
+});
+
+// --- PUSH NOTIFICATION HANDLERS ---
+
+self.addEventListener('push', function(event) {
+  if (event.data) {
+    const data = event.data.json();
+    const title = data.title || 'Pfoten-Event News';
+    const options = {
+      body: data.body || 'Neue Events verfügbar!',
+      icon: 'https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png',
+      badge: 'https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png',
+      vibrate: [100, 50, 100],
+      data: {
+        url: data.url || '/'
+      }
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+  }
+});
+
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then(windowClients => {
+      // Check if there is already a window/tab open with the target URL
+      for (var i = 0; i < windowClients.length; i++) {
+        var client = windowClients[i];
+        if (client.url === event.notification.data.url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // If not, open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(event.notification.data.url);
+      }
     })
   );
 });
