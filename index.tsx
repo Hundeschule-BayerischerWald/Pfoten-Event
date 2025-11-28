@@ -76,6 +76,17 @@ interface PromoModalData {
 
 // --- API-SCHICHT (Supabase) ---
 const api = {
+    adminCancelBooking: async (bookingId: string, eventId: string): Promise<void> => {
+        const { error } = await supabase.functions.invoke('admin-cancel-booking', {
+            body: { bookingId, eventId }
+        });
+        if (error) {
+            console.error("Error during admin cancellation:", error);
+            // Attempt to parse a more specific error message from the function's response
+            const errorDetails = (error as any).context?.json?.error || error.message;
+            throw new Error(`Die Buchung konnte nicht storniert werden. Grund: ${errorDetails}`);
+        }
+    },
     getPromoModal: async (): Promise<PromoModalData | null> => {
         const { data, error } = await supabase
             .from('promo_modal')
@@ -921,43 +932,42 @@ const ConfirmActionModal = ({ isOpen, onClose, onConfirm, title, message, confir
 };
 
 
-const BookingOverview = () => {
+const BookingOverview = ({ userRole }) => {
     const [eventsWithBookings, setEventsWithBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [confirmModalState, setConfirmModalState] = useState({ isOpen: false, data: null, error: '' });
+    const [cancelModalState, setCancelModalState] = useState({ isOpen: false, data: null, error: '', loading: false });
     const [sentEmails, setSentEmails] = useState(new Set());
     const [isSending, setIsSending] = useState(false);
     const [testEmail, setTestEmail] = useState('');
     const [isSendingTest, setIsSendingTest] = useState(false);
     const [testMessage, setTestMessage] = useState({ text: '', type: '' });
 
+    const loadBookings = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const { data, error: fetchError } = await supabase
+                .from('events')
+                .select('*, bookings_events(bookings(*, customers(*)))')
+                .order('date', { ascending: true });
+
+            if (fetchError) throw fetchError;
+            
+            const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const recentEvents = data.filter(event => new Date(event.date) >= twentyFourHoursAgo);
+            
+            setEventsWithBookings(recentEvents);
+        } catch (err) {
+            setError('Fehler beim Laden der Buchungsübersicht.');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const loadBookings = async () => {
-            setLoading(true);
-            setError('');
-            try {
-                // Fetch all events, sorted chronologically
-                const { data, error: fetchError } = await supabase
-                    .from('events')
-                    .select('*, bookings_events(bookings(*, customers(*)))')
-                    .order('date', { ascending: true });
-
-                if (fetchError) throw fetchError;
-                
-                // Filter out events that are older than 24 hours
-                const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-                const recentEvents = data.filter(event => new Date(event.date) >= twentyFourHoursAgo);
-                
-                setEventsWithBookings(recentEvents);
-            } catch (err) {
-                setError('Fehler beim Laden der Buchungsübersicht.');
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         loadBookings();
     }, []);
     
@@ -967,6 +977,28 @@ const BookingOverview = () => {
 
     const handleCloseConfirmation = () => {
         setConfirmModalState({ isOpen: false, data: null, error: '' });
+    };
+
+    const handleOpenCancelModal = (booking, customer, event) => {
+        setCancelModalState({ isOpen: true, data: { booking, customer, event }, error: '', loading: false });
+    };
+
+    const handleCloseCancelModal = () => {
+        setCancelModalState({ isOpen: false, data: null, error: '', loading: false });
+    };
+    
+    const handleConfirmAdminCancel = async () => {
+        if (!cancelModalState.data) return;
+        setCancelModalState(prev => ({ ...prev, loading: true, error: '' }));
+        const { booking, event } = cancelModalState.data;
+
+        try {
+            await api.adminCancelBooking(booking.id, event.id);
+            handleCloseCancelModal();
+            loadBookings(); // Reload the list to show the change
+        } catch (err) {
+            setCancelModalState(prev => ({ ...prev, loading: false, error: err.message }));
+        }
     };
     
     const handleSendNoShowEmail = async () => {
@@ -1060,8 +1092,8 @@ const BookingOverview = () => {
             ${eventsWithBookings.length === 0 ? html`<p class="empty-state">Keine relevanten Events mit Buchungen gefunden.</p>` :
             eventsWithBookings.map(event => {
                 const participants = event.bookings_events
-                    .map(be => be.bookings?.customers)
-                    .filter(Boolean); // Filter out any null/undefined customers
+                    .map(be => be.bookings)
+                    .filter(booking => booking && booking.customers);
                 
                 const categoryClass = `event-category-${event.category.toLowerCase()}`;
                 const eventDate = new Date(event.date);
@@ -1092,7 +1124,8 @@ const BookingOverview = () => {
 
                         ${participants.length > 0 ? html`
                             <ul class="participant-list">
-                                ${participants.map(customer => {
+                                ${participants.map(booking => {
+                                    const customer = booking.customers;
                                     const sentKey = `${event.id}-${customer.id}`;
                                     const emailSent = sentEmails.has(sentKey);
                                     
@@ -1105,8 +1138,8 @@ const BookingOverview = () => {
                                             <span>${customer.email}</span>
                                             <span>${customer.phone}</span>
                                         </div>
-                                        ${isPastOneHour && html`
-                                            <div class="participant-actions">
+                                        <div class="participant-actions">
+                                            ${isPastOneHour && html`
                                                 ${emailSent ? html`
                                                     <button class="btn btn-success" disabled>✔️ E-Mail gesendet</button>
                                                 ` : html`
@@ -1114,8 +1147,13 @@ const BookingOverview = () => {
                                                         'Nicht erschienen'-Mail
                                                     </button>
                                                 `}
-                                            </div>
-                                        `}
+                                            `}
+                                            ${userRole === 'admin' && html`
+                                                 <button class="btn btn-danger btn-small" onClick=${() => handleOpenCancelModal(booking, customer, event)}>
+                                                    Stornieren
+                                                </button>
+                                            `}
+                                        </div>
                                     </li>
                                 `})}
                             </ul>
@@ -1135,6 +1173,16 @@ const BookingOverview = () => {
             confirmText="Ja, E-Mail senden"
             loading=${isSending}
             error=${confirmModalState.error}
+        />
+        <${ConfirmActionModal} 
+            isOpen=${cancelModalState.isOpen}
+            onClose=${handleCloseCancelModal}
+            onConfirm=${handleConfirmAdminCancel}
+            title="Buchung stornieren"
+            message=${`Möchtest du die Buchung von ${cancelModalState.data?.customer.name} für "${cancelModalState.data?.event.title}" wirklich stornieren? Der Kunde erhält eine Bestätigungs-E-Mail.`}
+            confirmText="Ja, stornieren"
+            loading=${cancelModalState.loading}
+            error=${cancelModalState.error}
         />
     `;
 };
@@ -1384,7 +1432,7 @@ const LiveStatusManager = () => {
 };
 
 
-const AdminPanel = () => {
+const AdminPanel = ({ userRole }) => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1519,7 +1567,7 @@ const AdminPanel = () => {
                 >Live-Status</button>
             </div>
 
-            ${activeTab === 'overview' && html`<${BookingOverview} />`}
+            ${activeTab === 'overview' && html`<${BookingOverview} userRole=${userRole} />`}
             ${activeTab === 'status' && html`<${LiveStatusManager} />`}
 
             ${activeTab === 'events' && html`
@@ -1968,11 +2016,9 @@ const CustomerBookingView = ({ setView }) => {
     }
     
     const { eventsByWeek, selectedEvents } = useMemo(() => {
-        const today = new Date();
-        const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
+        const now = new Date();
         const futureEvents = allEvents
-            .filter(event => new Date(event.date) >= startOfToday)
+            .filter(event => event.date > now)
             .sort((a, b) => a.date.getTime() - b.date.getTime());
 
         const groupedByWeek = futureEvents.reduce((acc, event) => {
@@ -2026,7 +2072,7 @@ const CustomerBookingView = ({ setView }) => {
                                 <h3 class="week-header">${weekGroup.weekHeader}</h3>
                                 <ul class="event-list">
                                     ${weekGroup.events.map(event => {
-                                        const isPast = new Date(event.date) < startOfToday;
+                                        const isPast = event.date < new Date();
                                         return html`
                                         <${EventItem} 
                                             key=${event.id}
@@ -2293,14 +2339,14 @@ const App = () => {
             ${view === 'booking' && html`<${CustomerBookingView} setView=${setView} />`}
             ${view === 'manage' && html`<${BookingManagementPortal} setView=${setView} initialBookingId=${initialBookingId} />`}
             
-            ${session && view === 'admin' && userRole === 'admin' && html`<${AdminPanel} />`}
+            ${session && view === 'admin' && userRole === 'admin' && html`<${AdminPanel} userRole=${userRole} />`}
             
             ${session && view === 'admin' && userRole === 'mitarbeiter' && html`
                 <section class="admin-panel">
                     <div class="admin-header">
                         <h2>Buchungsübersicht</h2>
                     </div>
-                    <${BookingOverview} />
+                    <${BookingOverview} userRole=${userRole} />
                 </section>
             `}
         </main>

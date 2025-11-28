@@ -126,6 +126,53 @@ dein Team der Hundeschule Bayerischer Wald
     `;
 }
 
+function createAdminCancellationEmailHtml(customerName: string, bookingId: string, cancelledEvent: any, remainingEvents: any[], manageUrl: string) {
+  const cancelledEventHtml = `
+      <div style="background-color: #ffebee; border: 1px solid #e57373; color: #c62828; padding: 12px 15px; margin-bottom: 8px; border-radius: 12px; font-size: 14px; line-height: 1.5;">
+        <div style="font-size: 15px; font-weight: bold; margin-bottom: 5px; text-decoration: line-through;">${cancelledEvent.title}</div>
+        <div style="font-size: 13px; opacity: 0.9;">${cancelledEvent.date}</div>
+      </div>
+  `;
+
+  const remainingEventsHtml = remainingEvents.length > 0
+    ? remainingEvents.map(event => {
+        const styleInfo = CATEGORY_COLORS[event.category] || { bg: '#f0f0f0', text: '#333' };
+        const eventStyle = `background-color: ${styleInfo.bg}; color: ${styleInfo.text}; border: 1px solid rgba(0,0,0,0.1); padding: 12px 15px; margin-bottom: 8px; border-radius: 12px; font-size: 14px; line-height: 1.5;`;
+        return `<div style="${eventStyle}"><div style="font-size: 15px; font-weight: bold; color: ${styleInfo.text}; margin-bottom: 5px;">${event.title}</div><div style="font-size: 13px; color: ${styleInfo.text}; opacity: 0.9;">${event.date} &bull; Ort: ${event.location}</div></div>`
+    }).join('')
+    : '<p style="text-align: center; padding: 1rem; background-color: #f8f9fa; border-radius: 8px;">Du hast keine weiteren Events gebucht.</p>';
+
+  return `
+    <!DOCTYPE html><html><head><style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+    .content { padding: 20px; }
+    .header { font-size: 24px; color: #dc3545; margin: 0 0 10px; }
+    .booking-id { background-color: #e9ecef; padding: 10px; border-radius: 12px; text-align: center; margin-top: 15px; }
+    </style></head><body><div class="container">
+    <img src="${EMAIL_HEADER_IMAGE_URL}" alt="Hundeschule Banner" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
+    <div class="content">
+        <h1 class="header">Buchung storniert</h1>
+        <p>Hallo ${customerName},</p>
+        <p>wie besprochen, haben wir das folgende Event für dich storniert:</p>
+        ${cancelledEventHtml}
+        <h2 style="font-size: 20px; color: #333; margin: 25px 0 10px; border-top: 1px solid #eee; padding-top: 20px;">Deine aktualisierte Eventliste:</h2>
+        ${remainingEventsHtml}
+        <div class="booking-id">Deine Buchungsnummer lautet weiterhin: <strong>${bookingId}</strong></div>
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${manageUrl}" target="_blank" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 12px; font-weight: bold; display: inline-block;">
+            Meine Buchungen verwalten
+          </a>
+        </div>
+        <p style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
+          Dies ist eine automatisch generierte E-Mail. Bei Fragen wende dich bitte an unser Team unter ${REPLY_TO_EMAIL}.<br><br>
+          Vielen Dank und bis bald,<br>
+          dein Team der Hundeschule Bayerischer Wald
+        </p>
+    </div></div></body></html>
+  `;
+}
+
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -138,7 +185,7 @@ serve(async (req) => {
         throw new Error("RESEND_API_KEY ist nicht in den Supabase Secrets gesetzt.");
     }
 
-    const { type, customerName, customerEmail, bookingId, events, event } = await req.json();
+    const { type, customerName, customerEmail, bookingId, events, event, cancelledEvent } = await req.json();
     console.log(`[send-smtp-email] Processing request for ${customerEmail}, type: ${type}`);
     
     let subject, htmlContent;
@@ -147,6 +194,10 @@ serve(async (req) => {
     if (type === 'no-show') {
         subject = 'Wir haben dich vermisst!';
         htmlContent = createNoShowEmailHtml(customerName, event);
+    } else if (type === 'admin-cancellation') {
+        subject = 'Bestätigung deiner Stornierung';
+        const manageUrl = `https://pfoten-event.vercel.app/?view=manage&bookingId=${bookingId}`;
+        htmlContent = createAdminCancellationEmailHtml(customerName, bookingId, cancelledEvent, events, manageUrl);
     } else if (type === 'new-booking' || type === 'update-booking') {
         // Fetch PDF attachment only for new/update bookings
         try {

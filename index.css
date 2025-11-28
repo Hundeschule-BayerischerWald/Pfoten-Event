@@ -706,17 +706,21 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .participant-list li {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
     align-items: center;
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--border-color);
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 1rem;
 }
 
 .participant-list li:last-child {
     border-bottom: none;
+}
+
+.participant-info {
+    display: flex;
+    flex-direction: column;
 }
 
 .participant-info strong {
@@ -726,9 +730,19 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 .participant-contact {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: flex-start;
     font-size: 0.9rem;
     color: var(--secondary-color);
+}
+
+.participant-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.participant-actions .btn {
+    width: auto;
 }
 
 .overview-event-trainer {
@@ -1358,6 +1372,17 @@ input[type="file"] {
     .manage-container {
         grid-template-columns: 1fr;
     }
+    .participant-list li {
+        grid-template-columns: 1fr auto;
+    }
+    .participant-contact {
+        grid-column: 1 / 2;
+        align-items: flex-start;
+    }
+    .participant-actions {
+        grid-column: 2 / 3;
+        grid-row: 1 / 3;
+    }
 }
 
 @media (max-width: 576px) {
@@ -1467,11 +1492,14 @@ input[type="file"] {
         width: 100%;
     }
     .participant-list li {
-        flex-direction: column;
-        align-items: flex-start;
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
     }
     .participant-contact {
-        align-items: flex-start;
+       align-items: flex-start;
+    }
+    .participant-actions {
+        justify-content: flex-start;
     }
     .status-selection {
         flex-direction: column;
