@@ -997,7 +997,16 @@ const BookingOverview = ({ userRole }) => {
             handleCloseCancelModal();
             loadBookings(); // Reload the list to show the change
         } catch (err) {
-            setCancelModalState(prev => ({ ...prev, loading: false, error: err.message }));
+            // Check for authentication error (e.g., expired token)
+            if (err.message.includes('Token') || err.message.includes('JWT') || err.message.includes('401')) {
+                // Dispatch a global event that the App component can listen to
+                const authErrorEvent = new CustomEvent('auth-error', { 
+                    detail: { message: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.' }
+                });
+                window.dispatchEvent(authErrorEvent);
+            } else {
+                setCancelModalState(prev => ({ ...prev, loading: false, error: err.message }));
+            }
         }
     };
     
@@ -2133,10 +2142,10 @@ const CustomerBookingView = ({ setView }) => {
     `;
 };
 
-const AdminLoginModal = ({ onClose }) => {
+const AdminLoginModal = ({ onClose, initialError }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
+    const [error, setError] = useState(initialError || '');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
@@ -2164,10 +2173,11 @@ const AdminLoginModal = ({ onClose }) => {
             <div class="modal-content" onClick=${e => e.stopPropagation()}>
                 <form onSubmit=${handleSubmit}>
                     <div class="modal-header">
-                        <h2>Admin Login</h2>
+                        <h2>Mitarbeiter Login</h2>
                         <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
                     </div>
                     <div class="modal-body">
+                        ${error && html`<p class="error-message">${error}</p>`}
                         <div class="form-group">
                             <label for="admin-email">E-Mail</label>
                             <input type="email" id="admin-email" name="email" value=${email} onInput=${e => setEmail(e.target.value)} required autocomplete="email" />
@@ -2176,7 +2186,6 @@ const AdminLoginModal = ({ onClose }) => {
                             <label for="admin-password">Passwort</label>
                             <input type="password" id="admin-password" name="password" value=${password} onInput=${e => setPassword(e.target.value)} required autocomplete="current-password" />
                         </div>
-                        ${error && html`<p class="error-message">${error}</p>`}
                     </div>
                     <div class="modal-footer">
                          <button type="button" class="btn btn-secondary" onClick=${onClose} disabled=${loading}>Abbrechen</button>
@@ -2194,6 +2203,7 @@ const App = () => {
     const [session, setSession] = useState<Session | null>(null);
     const [userRole, setUserRole] = useState<string | null>(null);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [loginError, setLoginError] = useState('');
     const [initialBookingId, setInitialBookingId] = useState<string | null>(null);
     const [installPromptEvent, setInstallPromptEvent] = useState(null);
     const [promoModalData, setPromoModalData] = useState<PromoModalData | null>(null);
@@ -2271,12 +2281,27 @@ const App = () => {
                 setView('admin'); // Automatically switch to admin view on login
             }
         });
+        
+        // Global listener for authentication errors (e.g., expired session)
+        const handleAuthError = async (e: CustomEvent) => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                await supabase.auth.signOut();
+            }
+            setLoginError(e.detail.message);
+            setIsLoginModalOpen(true);
+            setView('booking'); // Reset view to default
+        };
+        
+        window.addEventListener('auth-error', handleAuthError);
+
 
         // Cleanup subscription on component unmount
         return () => {
             subscription.unsubscribe();
             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
             window.removeEventListener('appinstalled', handleAppInstalled);
+            window.removeEventListener('auth-error', handleAuthError);
         };
     }, []);
 
@@ -2339,15 +2364,8 @@ const App = () => {
             ${view === 'booking' && html`<${CustomerBookingView} setView=${setView} />`}
             ${view === 'manage' && html`<${BookingManagementPortal} setView=${setView} initialBookingId=${initialBookingId} />`}
             
-            ${session && view === 'admin' && userRole === 'admin' && html`<${AdminPanel} userRole=${userRole} />`}
-            
-            ${session && view === 'admin' && userRole === 'mitarbeiter' && html`
-                <section class="admin-panel">
-                    <div class="admin-header">
-                        <h2>Buchungsübersicht</h2>
-                    </div>
-                    <${BookingOverview} userRole=${userRole} />
-                </section>
+            ${session && view === 'admin' && (userRole === 'admin' || userRole === 'mitarbeiter') && html`
+                <${AdminPanel} userRole=${userRole} />
             `}
         </main>
         
@@ -2359,7 +2377,11 @@ const App = () => {
 
         ${isLoginModalOpen && html`
             <${AdminLoginModal} 
-                onClose=${() => setIsLoginModalOpen(false)}
+                onClose=${() => {
+                    setIsLoginModalOpen(false);
+                    setLoginError('');
+                }}
+                initialError=${loginError}
             />
         `}
         
