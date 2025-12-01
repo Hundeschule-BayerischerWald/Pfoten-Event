@@ -112,18 +112,21 @@ const api = {
         return data;
     },
     updateAppStatus: async (status: 'active' | 'cancelled' | 'partial', message: string): Promise<AppStatus> => {
-        // The `updated_at` field is now exclusively managed by the database trigger `on_app_status_update`.
-        // Removing it from the client-side payload prevents potential conflicts and relies on the DB as the source of truth.
         const { data, error } = await supabase.from('app_status').upsert({
-            id: 1, // Always update the same row
+            id: 1,
             status,
             message,
         }).select().single();
-        
+    
         if (error) {
-            console.error('Fehler beim Aktualisieren des App-Status:', error);
-            // Provide a more detailed error message to the user.
-            throw new Error(`Status konnte nicht aktualisiert werden. Grund: ${error.message}`);
+            console.error('Fehler beim Aktualisieren des App-Status (Detail):', JSON.stringify(error, null, 2));
+            
+            if (error.code === '42501') { // "insufficient_privilege" from Postgres
+                throw new Error("Fehlende Berechtigung. Bitte stelle sicher, dass die Rolle 'mitarbeiter' die nötigen Zugriffsrechte für die 'app_status' Tabelle hat. Führe das SQL-Skript aus der Anleitung aus.");
+            }
+            
+            const userMessage = `Status konnte nicht aktualisiert werden. Grund: ${error.message}.`;
+            throw new Error(userMessage);
         }
         if (!data) {
              throw new Error("Status konnte nicht aktualisiert werden, da keine Daten von der Datenbank zurückgegeben wurden.");
@@ -1377,7 +1380,8 @@ const LiveStatusManager = () => {
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000); // Hide success message after 3s
         } catch (err) {
-            setError(err.message);
+            const errorMessage = (err instanceof Error) ? err.message : String(err);
+            setError(errorMessage);
         } finally {
             setSaving(false);
         }
