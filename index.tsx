@@ -944,6 +944,7 @@ const BookingOverview = ({ userRole }) => {
     const [sentEmails, setSentEmails] = useState(new Set());
     const [isSending, setIsSending] = useState(false);
     const [testEmail, setTestEmail] = useState('');
+    const [testEmailType, setTestEmailType] = useState('no-show');
     const [isSendingTest, setIsSendingTest] = useState(false);
     const [testMessage, setTestMessage] = useState({ text: '', type: '' });
 
@@ -1052,18 +1053,51 @@ const BookingOverview = ({ userRole }) => {
         setTestMessage({ text: '', type: '' });
 
         try {
-            await supabase.functions.invoke('send-smtp-email', {
-                body: {
-                    type: 'no-show',
-                    customerName: 'Max Mustermann (Test)',
-                    customerEmail: testEmail,
-                    event: {
-                        title: 'Test-Event: Welpenstunde',
-                        date: new Date().toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr'
+            const body: any = {
+                type: testEmailType,
+                customerName: 'Max Mustermann (Test)',
+                customerEmail: testEmail,
+            };
+
+            if (testEmailType === 'no-show') {
+                body.event = {
+                    title: 'Test-Event: Welpenstunde',
+                    date: new Date().toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr'
+                };
+            } else if (testEmailType === 'new-booking' || testEmailType === 'update-booking') {
+                body.bookingId = 'TEST-BELLO-123';
+                body.events = [
+                    { 
+                        title: 'Test-Event: Welpenstunde', 
+                        date: new Date().toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
+                        location: 'Welpenwiese',
+                        category: 'Orchid'
+                    },
+                     { 
+                        title: 'Test-Event: Grunderziehung', 
+                        date: new Date(Date.now() + 86400000).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
+                        location: 'Hundeplatz Ascha',
+                        category: 'LimeGreen'
                     }
-                }
-            });
-            setTestMessage({ text: `Test-Mail erfolgreich an ${testEmail} gesendet!`, type: 'success' });
+                ];
+            } else if (testEmailType === 'admin-cancellation') {
+                body.bookingId = 'TEST-BELLO-123';
+                body.cancelledEvent = {
+                     title: 'Test-Event: Welpenstunde (Storniert)', 
+                     date: new Date().toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr'
+                };
+                body.events = [
+                     { 
+                        title: 'Test-Event: Grunderziehung', 
+                        date: new Date(Date.now() + 86400000).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
+                        location: 'Hundeplatz Ascha',
+                        category: 'LimeGreen'
+                    }
+                ];
+            }
+
+            await supabase.functions.invoke('send-smtp-email', { body });
+            setTestMessage({ text: `Test-Mail (${testEmailType}) erfolgreich an ${testEmail} gesendet!`, type: 'success' });
         } catch (err) {
             setTestMessage({ text: 'Fehler: Test-Mail konnte nicht gesendet werden.', type: 'error' });
         } finally {
@@ -1082,7 +1116,8 @@ const BookingOverview = ({ userRole }) => {
     return html`
         <div class="booking-overview-container">
             <div class="email-test-container">
-                <h4>'Nicht erschienen'-Mail testen</h4>
+                <h4>System-E-Mails testen</h4>
+                <p style="font-size: 0.85rem; color: #666; margin-bottom: 0.5rem;">Sende dir selbst eine Vorschau der verschiedenen E-Mails, um das Design zu prüfen.</p>
                 <form class="email-test-form" onSubmit=${handleSendTestEmail}>
                     <input 
                         type="email" 
@@ -1091,6 +1126,16 @@ const BookingOverview = ({ userRole }) => {
                         onInput=${e => setTestEmail(e.target.value)} 
                         required 
                     />
+                    <select 
+                        value=${testEmailType} 
+                        onChange=${e => setTestEmailType(e.target.value)}
+                        style="padding: 0.5rem; border-radius: 4px; border: 1px solid #dee2e6;"
+                    >
+                        <option value="new-booking">Neue Buchung (Bestätigung)</option>
+                        <option value="no-show">Nicht erschienen (Nachfass-Mail)</option>
+                        <option value="update-booking">Buchungs-Update</option>
+                        <option value="admin-cancellation">Admin-Stornierung</option>
+                    </select>
                     <button type="submit" class="btn btn-secondary btn-small" disabled=${isSendingTest}>
                         ${isSendingTest ? 'Sendet...' : 'Test-Mail senden'}
                     </button>
@@ -1703,7 +1748,10 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
                 setBooking(foundBooking);
                 setManagedEventIds(foundBooking.bookedEventIds);
             } else {
-                setError('Buchung nicht gefunden. Bitte überprüfe die Buchungsnummer.');
+                setError(html`
+                    <h3 style="margin: 0 0 0.5rem 0; font-size: 1.2rem; font-weight: 700;">Buchung nicht gefunden. Bitte überprüfe deine Eingabe.</h3>
+                    <p style="margin: 0;"><strong>Hinweis:</strong> Falls du aktuell keine zukünftigen Termine mehr hast, wurde deine alte Buchungsnummer eventuell bereits aus dem System entfernt. Bitte melde dich für neue Events einfach neu an.</p>
+                `);
             }
         } catch (err) {
             setError(err.message);
@@ -1840,7 +1888,7 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
                         <label for="bookingId">Buchungsnummer</label>
                         <input type="text" id="bookingId" name="bookingId" value=${bookingIdInput} onInput=${e => setBookingIdInput(e.target.value)} required placeholder="z.B. Bello-12345" />
                     </div>
-                    ${error && html`<p class="error-message">${error}</p>`}
+                    ${error && html`<div class="error-message">${error}</div>`}
                     <button type="submit" class="btn btn-primary" disabled=${isLoading}>
                         ${isLoading ? 'Sucht...' : 'Buchung suchen'}
                     </button>
@@ -1858,7 +1906,7 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
             <h2>Buchungsübersicht für ${booking.customer.name}</h2>
             <p>Buchungsnummer: <strong>${booking.bookingId}</strong></p>
             
-            ${error && html`<p class="error-message">${error}</p>`}
+            ${error && html`<div class="error-message">${error}</div>`}
             ${successMessage && html`<p class="success-message">${successMessage}</p>`}
 
             <div class="manage-container">
