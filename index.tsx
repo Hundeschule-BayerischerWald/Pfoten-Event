@@ -1750,10 +1750,7 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
                 setBooking(foundBooking);
                 setManagedEventIds(foundBooking.bookedEventIds);
             } else {
-                setError(html`
-                    <h3 style="margin: 0 0 0.5rem 0; font-size: 1.2rem; font-weight: 700;">Buchung nicht gefunden. Bitte überprüfe deine Eingabe.</h3>
-                    <p style="margin: 0;"><strong>Hinweis:</strong> Falls du aktuell keine zukünftigen Termine mehr hast, wurde deine alte Buchungsnummer eventuell bereits aus dem System entfernt. Bitte melde dich für neue Events einfach neu an.</p>
-                `);
+                setError('Buchung nicht gefunden. Bitte überprüfe deine Eingabe.');
             }
         } catch (err) {
             setError(err.message);
