@@ -1846,18 +1846,17 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
 
     const { bookedEvents, availableEvents } = useMemo(() => {
         if (!booking) return { bookedEvents: [], availableEvents: [] };
-        const today = new Date();
-        const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        
+        const now = new Date(); // Exact current time
+
         const booked = allEvents
-            .filter(e => managedEventIds.includes(e.id) && new Date(e.date) >= startOfToday)
+            .filter(e => managedEventIds.includes(e.id) && new Date(e.date) > now) // Strictly future events
             .sort((a, b) => a.date.getTime() - b.date.getTime());
 
         const available = allEvents
             .filter(e => {
-                if (managedEventIds.includes(e.id)) return false; // Already in selection
-                if (new Date(e.date) < startOfToday) return false; // In the past
-                if (e.booked_capacity >= e.total_capacity) return false; // Full
+                if (managedEventIds.includes(e.id)) return false;
+                if (new Date(e.date) <= now) return false; // Strictly future events
+                if (e.booked_capacity >= e.total_capacity) return false;
                 return true;
             })
             .sort((a, b) => a.date.getTime() - b.date.getTime());
