@@ -1115,37 +1115,39 @@ const BookingOverview = ({ userRole }) => {
 
     return html`
         <div class="booking-overview-container">
-            <div class="email-test-container">
-                <h4>System-E-Mails testen</h4>
-                <p style="font-size: 0.85rem; color: #666; margin-bottom: 0.5rem;">Sende dir selbst eine Vorschau der verschiedenen E-Mails, um das Design zu prüfen.</p>
-                <form class="email-test-form" onSubmit=${handleSendTestEmail}>
-                    <input 
-                        type="email" 
-                        placeholder="Deine E-Mail-Adresse" 
-                        value=${testEmail} 
-                        onInput=${e => setTestEmail(e.target.value)} 
-                        required 
-                    />
-                    <select 
-                        value=${testEmailType} 
-                        onChange=${e => setTestEmailType(e.target.value)}
-                        style="padding: 0.5rem; border-radius: 4px; border: 1px solid #dee2e6;"
-                    >
-                        <option value="new-booking">Neue Buchung (Bestätigung)</option>
-                        <option value="no-show">Nicht erschienen (Nachfass-Mail)</option>
-                        <option value="update-booking">Buchungs-Update</option>
-                        <option value="admin-cancellation">Admin-Stornierung</option>
-                    </select>
-                    <button type="submit" class="btn btn-secondary btn-small" disabled=${isSendingTest}>
-                        ${isSendingTest ? 'Sendet...' : 'Test-Mail senden'}
-                    </button>
-                </form>
-                ${testMessage.text && html`
-                    <p class=${`message ${testMessage.type === 'error' ? 'error-message' : 'success-message'}`}>
-                        ${testMessage.text}
-                    </p>
-                `}
-            </div>
+            ${userRole === 'admin' && html`
+                <div class="email-test-container">
+                    <h4>System-E-Mails testen</h4>
+                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 0.5rem;">Sende dir selbst eine Vorschau der verschiedenen E-Mails, um das Design zu prüfen.</p>
+                    <form class="email-test-form" onSubmit=${handleSendTestEmail}>
+                        <input 
+                            type="email" 
+                            placeholder="Deine E-Mail-Adresse" 
+                            value=${testEmail} 
+                            onInput=${e => setTestEmail(e.target.value)} 
+                            required 
+                        />
+                        <select 
+                            value=${testEmailType} 
+                            onChange=${e => setTestEmailType(e.target.value)}
+                            style="padding: 0.5rem; border-radius: 4px; border: 1px solid #dee2e6;"
+                        >
+                            <option value="new-booking">Neue Buchung (Bestätigung)</option>
+                            <option value="no-show">Nicht erschienen (Nachfass-Mail)</option>
+                            <option value="update-booking">Buchungs-Update</option>
+                            <option value="admin-cancellation">Admin-Stornierung</option>
+                        </select>
+                        <button type="submit" class="btn btn-secondary btn-small" disabled=${isSendingTest}>
+                            ${isSendingTest ? 'Sendet...' : 'Test-Mail senden'}
+                        </button>
+                    </form>
+                    ${testMessage.text && html`
+                        <p class="message ${testMessage.type === 'error' ? 'error-message' : 'success-message'}">
+                            ${testMessage.text}
+                        </p>
+                    `}
+                </div>
+            `}
             ${eventsWithBookings.length === 0 ? html`<p class="empty-state">Keine relevanten Events mit Buchungen gefunden.</p>` :
             eventsWithBookings.map(event => {
                 const participants = event.bookings_events
@@ -1730,7 +1732,7 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
     const [allEvents, setAllEvents] = useState<Event[]>([]);
     const [managedEventIds, setManagedEventIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [error, setError] = useState<string | any>('');
     const [successMessage, setSuccessMessage] = useState('');
     const [hasChanges, setHasChanges] = useState(false);
     const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
