@@ -2080,28 +2080,31 @@ const CustomerBookingView = ({ setView }) => {
             .filter(event => event.date > now)
             .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-        const groupedByWeek = futureEvents.reduce((acc, event) => {
+        // Linear grouping to preserve chronological order and handle year boundaries correctly
+        const eventsByWeek = [];
+        let currentGroup = null;
+        let lastKey = '';
+
+        futureEvents.forEach(event => {
+            // Calculate ISO Week Year to differentiate between Dec 2024 (KW 1 of 2025) and Dec 2024 (KW 52 of 2024)
+            const d = new Date(Date.UTC(event.date.getFullYear(), event.date.getMonth(), event.date.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+            const isoYear = d.getUTCFullYear();
             const week = getWeekNumber(event.date);
-            const year = event.date.getFullYear();
-            const key = `${year}-${String(week).padStart(2, '0')}`;
+            
+            const key = `${isoYear}-${week}`;
 
-            if (!acc[key]) {
-                acc[key] = { events: [] };
+            if (key !== lastKey) {
+                lastKey = key;
+                currentGroup = {
+                    weekHeader: `${formatMonthYear(event.date)} - Kalenderwoche ${week}`,
+                    events: []
+                };
+                eventsByWeek.push(currentGroup);
             }
-            acc[key].events.push(event);
-            return acc;
-        }, {});
-
-        const sortedKeys = Object.keys(groupedByWeek).sort();
-
-        const eventsByWeek = sortedKeys.map(key => {
-            const group = groupedByWeek[key];
-            const firstEventDate = group.events[0].date;
-            const weekNumber = getWeekNumber(firstEventDate);
-            return {
-                weekHeader: `${formatMonthYear(firstEventDate)} - Kalenderwoche ${weekNumber}`,
-                events: group.events
-            };
+            if (currentGroup) {
+                currentGroup.events.push(event);
+            }
         });
         
         const selectedEvents = allEvents.filter(event => selectedEventIds.includes(event.id)).sort((a,b) => a.date.getTime() - b.date.getTime());
