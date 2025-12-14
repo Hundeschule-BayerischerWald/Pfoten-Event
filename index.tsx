@@ -1200,10 +1200,10 @@ const BookingOverview = ({ userRole }) => {
                                         <div class="participant-actions">
                                             ${isPastOneHour && html`
                                                 ${emailSent ? html`
-                                                    <button class="btn btn-success" disabled>✔️ E-Mail gesendet</button>
+                                                    <button class="btn btn-success btn-small" disabled>✔️ Mail gesendet</button>
                                                 ` : html`
-                                                    <button class="btn btn-warning" onClick=${() => handleOpenConfirmation(customer, event)}>
-                                                        'Nicht erschienen'-Mail
+                                                    <button class="btn btn-warning btn-small" onClick=${() => handleOpenConfirmation(customer, event)}>
+                                                        Nicht erschienen
                                                     </button>
                                                 `}
                                             `}

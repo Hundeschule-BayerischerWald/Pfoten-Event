@@ -1498,9 +1498,31 @@ input[type="file"] {
     .participant-contact {
        align-items: flex-start;
     }
+    
+    /* --- NEW: Participant Actions (Mobile) --- */
     .participant-actions {
-        justify-content: flex-start;
+        justify-content: flex-end; /* Align container to the right (if room permits) */
+        flex-direction: column;    /* Stack buttons vertically */
+        align-items: flex-end;     /* Align items (buttons) to the right */
+        gap: 0.5rem;
+        margin-top: 0.5rem;
     }
+    .participant-actions .btn {
+        width: auto;
+        margin: 0;
+    }
+
+    /* --- NEW: Admin Tabs (Mobile) --- */
+    .admin-tabs {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch; /* Make buttons fill width */
+    }
+    .admin-tabs .btn {
+        width: 100%;
+        text-align: left; /* Left align text inside buttons */
+    }
+
     .status-selection {
         flex-direction: column;
     }
