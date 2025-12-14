@@ -39,6 +39,207 @@ body {
     margin: 2rem auto;
 }
 
+/* --- Monitor View Styles (Dark Mode / Kiosk) --- */
+.monitor-view {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #121212;
+    color: #ffffff;
+    z-index: 9999;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.monitor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid #333;
+    margin-bottom: 2rem;
+}
+
+.monitor-brand {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.monitor-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+}
+
+.monitor-title h1 {
+    font-size: 2rem;
+    margin: 0;
+    color: #f0f0f0;
+}
+.monitor-title p {
+    margin: 0;
+    color: #aaa;
+    font-size: 1.2rem;
+}
+
+.monitor-clock {
+    text-align: right;
+}
+
+.monitor-time {
+    font-size: 3.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.monitor-date {
+    font-size: 1.5rem;
+    color: #888;
+}
+
+/* Layouts */
+.monitor-content {
+    flex-grow: 1;
+    display: flex;
+    gap: 2rem;
+}
+
+.monitor-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    width: 100%;
+    height: 100%;
+}
+
+.monitor-single {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Event Card */
+.monitor-card {
+    background-color: #1e1e1e;
+    border-radius: 16px;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border-left: 12px solid transparent; /* Color set inline */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.monitor-card-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #333;
+}
+
+.monitor-status-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+}
+
+.monitor-event-title {
+    font-size: 3rem;
+    margin: 0;
+    line-height: 1.1;
+    color: #fff;
+}
+
+.monitor-event-meta {
+    font-size: 1.5rem;
+    color: #aaa;
+    margin-top: 0.5rem;
+}
+
+/* Participants Grid */
+.monitor-participants {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    overflow-y: auto;
+    padding-right: 1rem;
+}
+
+.monitor-participant-item {
+    background-color: #2a2a2a;
+    padding: 1.5rem;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid #333;
+}
+
+.monitor-dog-name {
+    display: block;
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 0.25rem;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.monitor-owner-name {
+    display: block;
+    font-size: 1.2rem;
+    color: #bbb;
+}
+
+/* Idle State */
+.monitor-idle {
+    text-align: center;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    opacity: 0.6;
+}
+.monitor-idle h2 {
+    font-size: 4rem;
+    margin: 2rem 0;
+}
+.monitor-idle p {
+    font-size: 2rem;
+}
+.monitor-idle-logo {
+    width: 200px;
+    height: 200px;
+    border-radius: 20px;
+    margin-bottom: 2rem;
+    opacity: 0.8;
+}
+
+/* Login Wrapper for Monitor */
+.monitor-login-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #121212;
+}
+
+
+/* --- End Monitor Styles --- */
+
+
 .booking-tool-header {
     margin-bottom: 2rem;
     background-color: rgba(253, 253, 255, 0.8);

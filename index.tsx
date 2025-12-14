@@ -934,6 +934,183 @@ const ConfirmActionModal = ({ isOpen, onClose, onConfirm, title, message, confir
     `;
 };
 
+// --- MONITOR VIEW COMPONENT ---
+const MonitorView = () => {
+    const [currentTime, setCurrentTime] = useState(new Date());
+    const [events, setEvents] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    // Clock ticker (every second)
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    // Data fetching (every 60 seconds)
+    useEffect(() => {
+        const fetchTodayEvents = async () => {
+            const today = new Date();
+            const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+            const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+
+            const { data, error } = await supabase
+                .from('events')
+                .select('*, bookings_events(bookings(customers(name, dog_name)))')
+                .gte('date', startOfDay)
+                .lt('date', endOfDay)
+                .order('date', { ascending: true });
+            
+            if (!error && data) {
+                // Parse dates and flatten structure
+                const parsedEvents = data.map(e => ({
+                    ...e,
+                    date: new Date(e.date),
+                    participants: e.bookings_events.map(be => be.bookings?.customers).filter(Boolean)
+                }));
+                setEvents(parsedEvents);
+            }
+            setLoading(false);
+        };
+
+        fetchTodayEvents(); // Initial fetch
+        const dataTimer = setInterval(fetchTodayEvents, 60000); // Poll every minute
+        return () => clearInterval(dataTimer);
+    }, []);
+
+    if (loading) return html`<div class="monitor-view"><div class="monitor-idle"><h2>Lade Daten...</h2></div></div>`;
+
+    // --- LOGIC: What to show ---
+    const now = currentTime;
+    
+    // Find "Current" event: Starts before now, ends after now (assuming 60 min duration)
+    // Actually, let's just use start time. If it started within the last 60 mins.
+    const currentEvent = events.find(e => {
+        const start = e.date.getTime();
+        const end = start + (60 * 60 * 1000); // 1 hour duration assumption
+        return now.getTime() >= start && now.getTime() < end;
+    });
+
+    // Find "Next" event: The first event that starts in the future
+    const nextEvent = events.find(e => e.date.getTime() > now.getTime());
+
+    // Layout Logic
+    let layout = 'idle'; // 'idle', 'single', 'split'
+
+    // Condition 1: Transition phase (15 mins before next class)
+    if (nextEvent) {
+        const msUntilNext = nextEvent.date.getTime() - now.getTime();
+        const minsUntilNext = msUntilNext / (1000 * 60);
+
+        if (minsUntilNext <= 15) {
+            // If current is running OR we are just waiting, show split view to show upcoming class
+            layout = 'split'; 
+        } else if (currentEvent) {
+            // Current is running, next is far away -> Show just current
+            layout = 'single';
+        } else if (minsUntilNext <= 30) {
+            // No current event, but next starts in 30 mins -> Show next as "Upcoming"
+             layout = 'single-next';
+        }
+    } else if (currentEvent) {
+        // Only current event exists today
+        layout = 'single';
+    }
+
+    // Helper to render an event card
+    const renderEventCard = (event, label) => {
+        if (!event) return null;
+        const color = event.category.toLowerCase(); // Map this to specific hex if needed, CSS classes handle it?
+        // Using inline styles for specific colors on the dark theme
+        const colorMap = {
+            'orchid': 'Orchid',
+            'limegreen': 'LimeGreen',
+            'skyblue': 'SkyBlue',
+            'peru': 'Peru',
+            'gold': 'Gold',
+            'white': '#F6F6C9',
+            'darkkhaki': 'DarkKhaki',
+            'tomato': 'Tomato'
+        };
+        const borderColor = colorMap[color] || '#fff';
+
+        return html`
+            <div class="monitor-card" style="border-left-color: ${borderColor}">
+                <div class="monitor-card-header">
+                    <span class="monitor-status-badge" style="background-color: ${borderColor}; color: #1a1a1a;">${label}</span>
+                    <h2 class="monitor-event-title">${event.title}</h2>
+                    <div class="monitor-event-meta">
+                        ${formatTime(event.date)} Uhr &bull; ${event.location} &bull; ${event.trainer || 'Kein Trainer'}
+                    </div>
+                </div>
+                <div class="monitor-participants">
+                    ${event.participants.map(p => html`
+                        <div class="monitor-participant-item">
+                            <span class="monitor-dog-name">${p.dog_name}</span>
+                            <span class="monitor-owner-name">${p.name.split(' ')[0]}</span> 
+                        </div>
+                    `)}
+                    ${event.participants.length === 0 && html`<p style="color: #666; font-size: 1.2rem; margin-top: 1rem;">Noch keine Anmeldungen.</p>`}
+                </div>
+            </div>
+        `;
+    };
+
+    return html`
+        <div class="monitor-view">
+            <header class="monitor-header">
+                <div class="monitor-brand">
+                    <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Logo" class="monitor-logo" />
+                    <div class="monitor-title">
+                        <h1>Pfoten-Event Monitor</h1>
+                        <p>Willkommen in der Hundeschule</p>
+                    </div>
+                </div>
+                <div class="monitor-clock">
+                    <div class="monitor-time">${new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' }).format(currentTime)}</div>
+                    <div class="monitor-date">${new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(currentTime)}</div>
+                </div>
+            </header>
+
+            <main class="monitor-content">
+                ${layout === 'idle' && html`
+                    <div class="monitor-idle">
+                        <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Logo" class="monitor-idle-logo" />
+                        <h2>Kein Kurs aktuell</h2>
+                        <p>Der nächste Kurs findet am ${nextEvent ? formatDate(nextEvent.date) + ' um ' + formatTime(nextEvent.date) : 'demnächst'} statt.</p>
+                    </div>
+                `}
+
+                ${layout === 'single' && html`
+                    <div class="monitor-single">
+                        ${renderEventCard(currentEvent, 'Jetzt Live')}
+                    </div>
+                `}
+
+                 ${layout === 'single-next' && html`
+                    <div class="monitor-single">
+                        ${renderEventCard(nextEvent, 'Als Nächstes')}
+                    </div>
+                `}
+
+                ${layout === 'split' && html`
+                    <div class="monitor-split">
+                        <div>
+                            ${currentEvent ? renderEventCard(currentEvent, 'Aktuell') : html`
+                                <div class="monitor-idle" style="height: 100%; justify-content: flex-start; padding-top: 4rem;">
+                                    <h3>Kein laufender Kurs</h3>
+                                </div>
+                            `}
+                        </div>
+                        <div>
+                            ${renderEventCard(nextEvent, 'In Kürze')}
+                        </div>
+                    </div>
+                `}
+            </main>
+        </div>
+    `;
+};
+
 
 const BookingOverview = ({ userRole }) => {
     const [eventsWithBookings, setEventsWithBookings] = useState([]);
@@ -2250,7 +2427,6 @@ const AdminLoginModal = ({ onClose, initialError }) => {
     `;
 };
 
-
 const App = () => {
     const [view, setView] = useState('booking');
     const [session, setSession] = useState<Session | null>(null);
@@ -2316,6 +2492,8 @@ const App = () => {
         if (viewParam === 'manage' && bookingIdParam) {
             setView('manage');
             setInitialBookingId(bookingIdParam);
+        } else if (viewParam === 'monitor') {
+            setView('monitor');
         }
 
         // Fetch the initial session
@@ -2331,7 +2509,13 @@ const App = () => {
             setUserRole(session?.user?.user_metadata?.role ?? null);
             if (session) { // If a session is established (login successful)
                 setIsLoginModalOpen(false);
-                setView('admin'); // Automatically switch to admin view on login
+                // Check current URL param to decide view
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('view') === 'monitor') {
+                    setView('monitor');
+                } else {
+                    setView('admin'); // Automatically switch to admin view on login otherwise
+                }
             }
         });
         
@@ -2384,6 +2568,20 @@ const App = () => {
         }
         setIsPromoModalOpen(false);
     };
+
+    if (view === 'monitor') {
+        if (!session) {
+             return html`
+                <div class="monitor-login-wrapper">
+                    <${AdminLoginModal} 
+                        onClose=${() => setView('booking')} 
+                        initialError="Bitte einloggen für Monitor-Modus" 
+                    />
+                </div>
+             `;
+        }
+        return html`<${MonitorView} />`;
+    }
 
     return html`
         <header class="booking-tool-header">
