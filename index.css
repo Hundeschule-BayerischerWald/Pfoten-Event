@@ -50,13 +50,13 @@ body {
 
 .slider-track {
     position: relative;
-    height: 58px;
-    background: #f4f5f3; /* Hellere Pille */
-    border-radius: 29px;
-    padding: 4px;
+    height: 64px; /* Etwas höher für bessere Haptik */
+    background: #f9f9fb; /* Heller für besseren Kontrast der Icons */
+    border-radius: 32px;
+    padding: 6px; /* Exakt gleiches Padding rundherum */
     display: flex;
     align-items: center;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.02);
     overflow: hidden;
     user-select: none;
 }
@@ -77,7 +77,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 10px;
     font-weight: 700;
     font-size: 0.95rem;
     color: #8e8e93;
@@ -90,17 +90,19 @@ body {
 
 .slider-handle {
     position: absolute;
-    top: 4px;
-    bottom: 4px;
+    top: 6px; /* Gleiches Padding wie oben */
+    bottom: 6px; /* Gleiches Padding wie unten */
+    left: 6px; /* Startposition exakt im Padding */
     width: var(--handle-width);
-    background: #ffffff;
-    border-radius: 25px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    background: white;
+    border-radius: 26px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
     z-index: 2; /* Schieber UNTER den Labels */
     cursor: grab;
     display: flex;
     align-items: center;
     justify-content: center;
+    will-change: transform;
 }
 
 .slider-handle:active {
@@ -108,16 +110,16 @@ body {
 }
 
 .handle-inner {
-    width: 32px;
+    width: 36px;
     height: 3px;
-    background: #e5e5ea;
+    background: #f1f1f4;
     border-radius: 2px;
 }
 
 .slider-hint {
     font-size: 0.75rem;
     color: var(--secondary-color);
-    margin-top: 0.6rem;
+    margin-top: 0.75rem;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.08em;

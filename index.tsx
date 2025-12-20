@@ -472,8 +472,6 @@ const AppSwitcher = () => {
 
     const handleStart = (e) => {
         setIsDragging(true);
-        // Do not preventDefault here to allow clicks on potential links if desired, 
-        // though handle is purely interactive.
     };
 
     const handleMove = (e) => {
@@ -525,7 +523,6 @@ const AppSwitcher = () => {
     return html`
         <div class="app-slider-container" ref=${sliderRef}>
             <div class="slider-track">
-                <!-- Text layer sits ABOVE the handle (highlight) -->
                 <div class="slider-labels">
                     <div class="slider-option left ${position < 50 ? 'active' : ''}">
                         <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Card" class="segmented-icon" />
@@ -537,12 +534,11 @@ const AppSwitcher = () => {
                     </div>
                 </div>
 
-                <!-- Interactive handle layer sits UNDER the labels visually but captures mouse -->
                 <div 
                     class="slider-handle" 
                     style=${{ 
-                        left: `calc(${position}% - (var(--handle-width) * ${position / 100}))`, 
-                        transition: isDragging ? 'none' : 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
+                        transform: `translateX(calc(${position}/100 * (100% - var(--handle-width) - 12px)))`,
+                        transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
                     }}
                     onMouseDown=${handleStart}
                     onTouchStart=${handleStart}
