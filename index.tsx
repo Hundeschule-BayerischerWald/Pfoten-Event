@@ -370,7 +370,7 @@ const api = {
         if (updatedEventData.totalCapacity) payload.total_capacity = updatedEventData.totalCapacity;
         delete payload.totalCapacity; // camelCase-Version entfernen
 
-        const { data, error } = await supabase.from('events').update(payload).eq('id', eventId).select().single();
+        const { data, error = null } = await supabase.from('events').update(payload).eq('id', eventId).select().single();
         if (error) throw new Error("Event konnte nicht aktualisiert werden.");
         
         const updatedEventResult = {...data, date: new Date(data.date)};
@@ -442,7 +442,7 @@ const api = {
 const formatDate = (date: Date) => new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: 'short' }).format(date);
 const formatTime = (date: Date) => new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' }).format(date) + ' Uhr';
 const formatStatusTime = (date: Date) => new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' }).format(date);
-const formatMonthYear = (date: Date) => new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(date);
+const formatMonthYear = (date: Date) => new Intl.DateTimeFormat('de-DE', { month: 'short', year: 'numeric' }).format(date);
 const getWeekNumber = (d: Date): number => {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -466,16 +466,91 @@ const toInputTimeString = (date: Date): string => {
 // --- KOMPONENTEN ---
 
 const AppSwitcher = () => {
+    const [isDragging, setIsDragging] = useState(false);
+    const [position, setPosition] = useState(0); // 0 to 100%
+    const sliderRef = useRef(null);
+
+    const handleStart = (e) => {
+        setIsDragging(true);
+        // Do not preventDefault here to allow clicks on potential links if desired, 
+        // though handle is purely interactive.
+    };
+
+    const handleMove = (e) => {
+        if (!isDragging || !sliderRef.current) return;
+        
+        const rect = sliderRef.current.getBoundingClientRect();
+        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const relativeX = clientX - rect.left;
+        let percentage = (relativeX / rect.width) * 100;
+        
+        // Clamp between 0 and 100
+        percentage = Math.max(0, Math.min(100, percentage));
+        setPosition(percentage);
+    };
+
+    const handleEnd = () => {
+        if (!isDragging) return;
+        setIsDragging(false);
+        
+        if (position > 85) {
+            // Trigger navigation
+            window.location.href = "https://pfotencard.vercel.app/";
+        } else {
+            // Snap back
+            setPosition(0);
+        }
+    };
+
+    useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMove);
+            window.addEventListener('mouseup', handleEnd);
+            window.addEventListener('touchmove', handleMove);
+            window.addEventListener('touchend', handleEnd);
+        } else {
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleEnd);
+            window.removeEventListener('touchmove', handleMove);
+            window.removeEventListener('touchend', handleEnd);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleEnd);
+            window.removeEventListener('touchmove', handleMove);
+            window.removeEventListener('touchend', handleEnd);
+        };
+    }, [isDragging, position]);
+
     return html`
-        <div class="app-segmented-control">
-            <div class="segmented-control-option active">
-                <span>Pfoten-Event</span>
+        <div class="app-slider-container" ref=${sliderRef}>
+            <div class="slider-track">
+                <!-- Text layer sits ABOVE the handle (highlight) -->
+                <div class="slider-labels">
+                    <div class="slider-option left ${position < 50 ? 'active' : ''}">
+                        <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Card" class="segmented-icon" />
+                        <span>Pfoten-Event</span>
+                    </div>
+                    <div class="slider-option right ${position >= 50 ? 'active' : ''}">
+                        <img src="https://hs-bw.com/wp-content/uploads/2024/02/WhatsApp-Huschu.png" alt="Card" class="segmented-icon" />
+                        <span>Pfoten-Card</span>
+                    </div>
+                </div>
+
+                <!-- Interactive handle layer sits UNDER the labels visually but captures mouse -->
+                <div 
+                    class="slider-handle" 
+                    style=${{ 
+                        left: `calc(${position}% - (var(--handle-width) * ${position / 100}))`, 
+                        transition: isDragging ? 'none' : 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
+                    }}
+                    onMouseDown=${handleStart}
+                    onTouchStart=${handleStart}
+                >
+                    <div class="handle-inner"></div>
+                </div>
             </div>
-            <a href="https://pfotencard.vercel.app/" class="segmented-control-option" target="_blank" rel="noopener noreferrer">
-                <img src="https://hs-bw.com/wp-content/uploads/2024/02/WhatsApp-Huschu.png" alt="Card" class="segmented-icon" />
-                <span>Pfoten-Card</span>
-            </a>
-            <div class="segmented-control-highlight"></div>
+            <div class="slider-hint">Schiebe nach rechts zum Wechseln</div>
         </div>
     `;
 };
@@ -1138,7 +1213,7 @@ const BookingOverview = ({ userRole }) => {
         setLoading(true);
         setError('');
         try {
-            const { data, error: fetchError } = await supabase
+            const { data, error: fetchError = null } = await supabase
                 .from('events')
                 .select('*, bookings_events(bookings(*, customers(*)))')
                 .order('date', { ascending: true });

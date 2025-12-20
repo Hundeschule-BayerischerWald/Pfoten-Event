@@ -16,6 +16,7 @@
     --border-radius: 8px;
     --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     --transition-speed: 0.2s ease-in-out;
+    --handle-width: 190px;
 }
 
 *, *::before, *::after {
@@ -39,71 +40,98 @@ body {
     margin: 2rem auto;
 }
 
-/* --- App Segmented Control (Switcher) --- */
-.app-segmented-control {
-    position: relative;
-    display: flex;
-    background: #e4e4e7;
-    padding: 4px;
-    border-radius: 30px;
+/* --- App Slider Control --- */
+.app-slider-container {
     width: 100%;
-    max-width: 400px;
-    margin: 0 auto;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+    max-width: 420px;
+    margin: 1.5rem auto;
+    text-align: center;
 }
 
-.segmented-control-option {
+.slider-track {
     position: relative;
+    height: 58px;
+    background: #f4f5f3; /* Hellere Pille */
+    border-radius: 29px;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+    overflow: hidden;
+    user-select: none;
+}
+
+.slider-labels {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    z-index: 5; /* Labels ÜBER dem Schieber */
+    pointer-events: none; /* Klicks gehen durch die Labels zum Schieber */
+}
+
+.slider-option {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 10px 16px;
+    font-weight: 700;
     font-size: 0.95rem;
-    font-weight: 600;
-    color: #71717a;
-    text-decoration: none;
-    z-index: 2;
+    color: #8e8e93;
     transition: color 0.3s ease;
-    cursor: pointer;
-    border-radius: 25px;
 }
 
-.segmented-control-option.active {
+.slider-option.active {
     color: var(--primary-color);
 }
 
-.segmented-control-option:not(.active):hover {
-    color: #3f3f46;
+.slider-handle {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    width: var(--handle-width);
+    background: #ffffff;
+    border-radius: 25px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    z-index: 2; /* Schieber UNTER den Labels */
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.slider-handle:active {
+    cursor: grabbing;
+}
+
+.handle-inner {
+    width: 32px;
+    height: 3px;
+    background: #e5e5ea;
+    border-radius: 2px;
+}
+
+.slider-hint {
+    font-size: 0.75rem;
+    color: var(--secondary-color);
+    margin-top: 0.6rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.6;
 }
 
 .segmented-icon {
-    width: 22px;
-    height: 22px;
-    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
     object-fit: cover;
 }
 
-.segmented-control-highlight {
-    position: absolute;
-    top: 4px;
-    left: 4px;
-    width: calc(50% - 4px);
-    height: calc(100% - 8px);
-    background: white;
-    border-radius: 25px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-    z-index: 1;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Switch active side logic for Pfoten-Event (left by default) */
-.segmented-control-option:nth-child(2):active ~ .segmented-control-highlight {
-    transform: translateX(100%);
-}
-
-/* --- Monitor View Styles (Dark Mode / Kiosk) --- */
+/* --- Monitor View Styles --- */
 .monitor-view {
     position: fixed;
     top: 0;
@@ -167,7 +195,6 @@ body {
     color: #888;
 }
 
-/* Layouts */
 .monitor-content {
     flex-grow: 1;
     display: flex;
@@ -190,7 +217,6 @@ body {
     align-items: center;
 }
 
-/* Event Card */
 .monitor-card {
     background-color: #1e1e1e;
     border-radius: 16px;
@@ -198,7 +224,7 @@ body {
     display: flex;
     flex-direction: column;
     height: 100%;
-    border-left: 12px solid transparent; /* Color set inline */
+    border-left: 12px solid transparent;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
@@ -231,7 +257,6 @@ body {
     margin-top: 0.5rem;
 }
 
-/* Participants Grid */
 .monitor-participants {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -266,7 +291,6 @@ body {
     color: #bbb;
 }
 
-/* Idle State */
 .monitor-idle {
     text-align: center;
     width: 100%;
@@ -291,7 +315,6 @@ body {
     opacity: 0.8;
 }
 
-/* Login Wrapper for Monitor */
 .monitor-login-wrapper {
     display: flex;
     justify-content: center;
@@ -299,9 +322,6 @@ body {
     height: 100vh;
     background-color: #121212;
 }
-
-
-/* --- End Monitor Styles --- */
 
 
 .booking-tool-header {
@@ -314,7 +334,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .header-content {
@@ -358,6 +378,7 @@ body {
     gap: 1rem;
     flex-wrap: wrap;
     width: 100%;
+    margin-top: 1rem;
 }
 .main-nav .btn {
     width: auto;
@@ -399,7 +420,7 @@ body {
 .event-list-container {
     max-height: 80vh;
     overflow-y: auto;
-    padding-right: 10px; /* for scrollbar */
+    padding-right: 10px;
 }
 
 .week-header {
@@ -428,7 +449,7 @@ body {
     color: var(--text-on-colored-bg);
     font-size: 0.95rem;
     border: 1px solid rgba(0,0,0,0.1);
-    position: relative; /* For the ::before pseudo-element */
+    position: relative;
 }
 
 .event-item.disabled {
@@ -437,7 +458,6 @@ body {
     text-decoration: line-through;
 }
 
-/* This ::before will act as the fading overlay */
 .event-item.disabled::before {
     content: '';
     position: absolute;
@@ -445,12 +465,11 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(255, 255, 255, 0.7); /* Adjust opacity for desired fade level */
-    border-radius: 6px; /* Match parent's border-radius */
-    z-index: 0; /* Place it behind the content */
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 6px;
+    z-index: 0;
 }
 
-/* Make sure the actual content is on top of the overlay */
 .event-item > * {
     position: relative;
     z-index: 1;
@@ -485,7 +504,6 @@ body {
     transform: translate(-50%, -50%);
 }
 
-/* --- Legend Styles --- */
 .event-legend {
     margin-bottom: 1.5rem;
     padding: 1rem;
@@ -524,11 +542,9 @@ body {
     height: 16px;
     border-radius: 4px;
     flex-shrink: 0;
-    border: 1px solid rgba(0,0,0,0.15); /* Add border to all swatches for consistency */
+    border: 1px solid rgba(0,0,0,0.15);
 }
 
-
-/* Event Category Colors */
 .event-category-orchid { background-color: Orchid; }
 .event-category-limegreen { background-color: LimeGreen; }
 .event-category-skyblue { background-color: SkyBlue; }
@@ -643,12 +659,11 @@ body {
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
 }
 
-/* Ensure native date/time picker icon is visible and clickable */
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator {
     cursor: pointer;
     opacity: 0.7;
-    filter: invert(0.5); /* Makes the icon visible on light backgrounds */
+    filter: invert(0.5);
     transition: opacity var(--transition-speed);
     margin-right: 0.5rem;
 }
@@ -834,7 +849,6 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     font-size: 1.5rem;
 }
 
-/* --- Admin Panel --- */
 .admin-panel {
     background: var(--surface-color);
     border-radius: var(--border-radius);
@@ -923,7 +937,6 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     padding: 0.5rem 1rem;
 }
 
-/* --- Booking Overview --- */
 .booking-overview-container {
     padding-top: 1rem;
 }
@@ -1034,7 +1047,6 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 }
 
 
-/* --- Booking Management Portal --- */
 .booking-lookup-form {
     max-width: 500px;
     margin: 2rem auto;
@@ -1149,7 +1161,6 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     width: auto;
 }
 
-/* --- Notification Styles --- */
 .notification-prompt {
     background-color: var(--disabled-color);
     padding: 1rem;
@@ -1171,7 +1182,6 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
     text-align: center;
 }
 
-/* --- Modal Styles --- */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -1269,7 +1279,6 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   width: auto;
   min-width: 120px;
 }
-/* CSV Import Modal Styles */
 .csv-instructions {
     background-color: var(--disabled-color);
     padding: 1rem;
@@ -1300,7 +1309,6 @@ input[type="file"] {
     width: 100%;
 }
 
-/* --- Promo Modal Styles --- */
 .promo-modal-overlay {
     position: fixed;
     top: 0;
@@ -1326,8 +1334,8 @@ input[type="file"] {
     z-index: 2001;
     animation: fadeIn 0.4s ease-out;
     position: relative;
-    overflow: hidden; /* Ensures image respects the border-radius */
-    line-height: 0; /* Removes potential whitespace below the image */
+    overflow: hidden;
+    line-height: 0;
 }
 
 .promo-modal-content .modal-close-btn {
@@ -1350,15 +1358,14 @@ input[type="file"] {
 }
 
 .promo-modal-image {
-    display: block; /* Makes layout simpler */
+    display: block;
     width: auto;
     height: auto;
     max-width: 100%;
-    max-height: 90vh; /* Allow image to use more vertical space */
+    max-height: 90vh;
     object-fit: contain;
 }
 
-/* --- Footer & Admin Login --- */
 .app-footer {
     text-align: center;
     padding: 1rem;
@@ -1380,7 +1387,6 @@ input[type="file"] {
     color: var(--primary-color);
 }
 
-/* --- Cleanup Action Styles --- */
 .cleanup-container {
     display: flex;
     flex-direction: column;
@@ -1419,7 +1425,6 @@ input[type="file"] {
     border-radius: 6px !important;
 }
 
-/* --- PWA Install Prompt Animation --- */
 @keyframes pulse-bounce {
   0%, 100% {
     transform: scale(1);
@@ -1473,7 +1478,6 @@ input[type="file"] {
 }
 
 
-/* --- Progress Bar --- */
 .progress-indicator {
     display: flex;
     flex-direction: column;
@@ -1522,7 +1526,6 @@ input[type="file"] {
     }
 }
 
-/* --- Live Status Banner --- */
 .status-banner {
     display: flex;
     align-items: center;
@@ -1553,7 +1556,7 @@ input[type="file"] {
     margin: 0;
     font-weight: 600;
     font-size: 1.1rem;
-    white-space: pre-wrap; /* Allows line breaks */
+    white-space: pre-wrap;
 }
 .status-banner-time {
     margin: 0.25rem 0 0;
@@ -1561,7 +1564,6 @@ input[type="file"] {
     opacity: 0.8;
 }
 
-/* --- Live Status Manager (Admin) --- */
 .live-status-manager {
     padding-top: 1rem;
 }
@@ -1594,7 +1596,6 @@ input[type="file"] {
 }
 
 
-/* --- Email Test Container --- */
 .email-test-container {
     background-color: var(--disabled-color);
     padding: 1rem;
@@ -1696,14 +1697,12 @@ input[type="file"] {
       column-gap: 0.5rem;
     }
     .event-item .event-details {
-        /* This is the key fix: It allows the label to shrink and fit 
-           next to the checkbox, preventing a premature wrap. */
         flex: 1 1 0%;
     }
     .event-item .event-capacity {
         flex-basis: 100%;
         text-align: left;
-        padding-left: calc(18px + 0.5rem); /* 18px checkbox width + 0.5rem column-gap */
+        padding-left: calc(18px + 0.5rem);
     }
     .modal-content {
       padding: 1.5rem;
@@ -1766,11 +1765,10 @@ input[type="file"] {
        align-items: flex-start;
     }
     
-    /* --- NEW: Participant Actions (Mobile) --- */
     .participant-actions {
-        justify-content: flex-end; /* Align container to the right (if room permits) */
-        flex-direction: column;    /* Stack buttons vertically */
-        align-items: flex-end;     /* Align items (buttons) to the right */
+        justify-content: flex-end;
+        flex-direction: column;
+        align-items: flex-end;
         gap: 0.5rem;
         margin-top: 0.5rem;
     }
@@ -1779,24 +1777,30 @@ input[type="file"] {
         margin: 0;
     }
 
-    /* --- NEW: Admin Tabs (Mobile) --- */
     .admin-tabs {
         flex-direction: column;
         gap: 0.5rem;
-        align-items: stretch; /* Make buttons fill width */
+        align-items: stretch;
     }
     .admin-tabs .btn {
         width: 100%;
-        text-align: left; /* Left align text inside buttons */
+        text-align: left;
     }
 
     .status-selection {
         flex-direction: column;
     }
     
-    /* Fix Legend Stack on Mobile */
     .legend-list {
         flex-direction: column;
         gap: 0.5rem;
+    }
+
+    /* Slider adjustments for mobile */
+    :root {
+        --handle-width: 160px;
+    }
+    .slider-option span {
+        font-size: 0.75rem;
     }
 }
