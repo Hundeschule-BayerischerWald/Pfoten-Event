@@ -1,3 +1,4 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -5,17 +6,10 @@
 import { render, h } from 'preact';
 import { useState, useEffect, useMemo, useRef } from 'preact/hooks';
 import htm from 'htm';
-import { createClient, Session, RealtimeChannel } from '@supabase/supabase-js';
+import { Session, RealtimeChannel } from '@supabase/supabase-js';
+import { supabase } from './supabaseClient';
 
 const html = htm.bind(h);
-
-// --- SUPABASE KONFIGURATION ---
-// BITTE ERSETZE DIESE WERTE MIT DEINEN EIGENEN SUPABASE PROJEKT-DATEN
-// Du findest sie in deinem Supabase Dashboard unter Project Settings > API
-const supabaseUrl = 'https://wjlroiymmpvwaapboahh.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqbHJvaXltbXB2d2FhcGJvYWhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5NDExNDMsImV4cCI6MjA3NTUxNzE0M30.oRDURzRrudCmNAis4ZACxPsbWJwdxHt5Nw49phamZO4';
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 
 // --- KONFIGURATION ---
 const CANCELLATION_WINDOW_HOURS = 24; // Stornierungen/Änderungen nur bis 24h vor dem Event möglich
@@ -470,6 +464,21 @@ const toInputTimeString = (date: Date): string => {
 
 
 // --- KOMPONENTEN ---
+
+const AppSwitcher = () => {
+    return html`
+        <div class="app-segmented-control">
+            <div class="segmented-control-option active">
+                <span>Pfoten-Event</span>
+            </div>
+            <a href="https://pfotencard.vercel.app/" class="segmented-control-option" target="_blank" rel="noopener noreferrer">
+                <img src="https://hs-bw.com/wp-content/uploads/2024/02/WhatsApp-Huschu.png" alt="Card" class="segmented-icon" />
+                <span>Pfoten-Card</span>
+            </a>
+            <div class="segmented-control-highlight"></div>
+        </div>
+    `;
+};
 
 const PromoModal = ({ data, onClose }) => {
     if (!data.image_url) return null;
@@ -1826,8 +1835,8 @@ const AdminPanel = ({ userRole }) => {
                                     ` : isConfirmingCleanup ? html`
                                         <div class="confirm-cleanup-actions">
                                             <span>Sicher?</span>
-                                            <button class="btn btn-secondary btn-small" onClick=${() => setIsConfirmingCleanup(false)}>Abbrechen</button>
-                                            <button class="btn btn-danger btn-small" onClick=${handleConfirmCleanup}>Ja, löschen</button>
+                                            <button class="btn btn-secondary" onClick=${() => setIsConfirmingCleanup(false)}>Abbrechen</button>
+                                            <button class="btn btn-danger" onClick=${handleConfirmCleanup}>Ja, löschen</button>
                                         </div>
                                     ` : html`
                                         <button class="btn btn-danger" onClick=${handleStartCleanup}>
@@ -2601,6 +2610,9 @@ const App = () => {
                     <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
                 </div>
             </div>
+            
+            <${AppSwitcher} />
+
             <nav class="main-nav">
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Buchungsansicht</button>
                 <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('manage')}>Meine Buchungen verwalten</button>
