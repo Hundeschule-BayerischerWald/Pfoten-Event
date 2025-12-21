@@ -478,7 +478,7 @@ const AppSwitcher = () => {
         if (!isDragging || !sliderRef.current) return;
         
         const rect = sliderRef.current.getBoundingClientRect();
-        const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        const clientX = e.type.includes('touch') ? (e.touches ? e.touches[0].clientX : e.clientX) : e.clientX;
         const relativeX = clientX - rect.left;
         let percentage = (relativeX / rect.width) * 100;
         
@@ -537,8 +537,8 @@ const AppSwitcher = () => {
                 <div 
                     class="slider-handle" 
                     style=${{ 
-                        transform: `translateX(calc(${position}/100 * (100% - var(--handle-width) - 12px)))`,
-                        transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
+                        left: `calc(6px + (${position} / 100) * (100% - var(--handle-width) - 12px))`,
+                        transition: isDragging ? 'none' : 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
                     }}
                     onMouseDown=${handleStart}
                     onTouchStart=${handleStart}
