@@ -105,7 +105,7 @@ body {
 .handle-inner {
     width: 16px;           /* Breite des Strichs */
     height: 3px;           /* Dicke des Strichs */
-    background: #ffffff;   /* Farbe des Strichs (Dunkelgrau für Kontrast auf Gelb) */
+    background: #ffffff;   /* Farbe des Strichs */
     border-radius: 2px;    /* Abrundung der Ecken */
     opacity: 0.5;          /* Transparenz */
 }
