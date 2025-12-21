@@ -16,7 +16,7 @@
     --border-radius: 8px;
     --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     --transition-speed: 0.2s ease-in-out;
-    --handle-width: 190px;
+    --handle-width: 50px; /* Reduced handle width */
 }
 
 *, *::before, *::after {
@@ -43,94 +43,90 @@ body {
 /* --- App Slider Control --- */
 .app-slider-container {
     width: 100%;
-    max-width: 420px;
+    max-width: 500px; /* Slightly wider to fit icons */
     margin: 1.5rem auto;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.slider-option-outer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #8e8e93;
+    transition: color 0.3s ease;
+    cursor: default;
+    user-select: none;
+}
+
+.slider-option-outer.active {
+    color: var(--text-color);
 }
 
 .slider-track {
     position: relative;
-    height: 64px; /* Etwas höher für bessere Haptik */
-    background: #f9f9fb; /* Heller für besseren Kontrast der Icons */
-    border-radius: 32px;
-    padding: 6px; /* Exakt gleiches Padding rundherum */
-    display: flex;
-    align-items: center;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.02);
-    overflow: hidden;
-    user-select: none;
-}
-
-.slider-labels {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    z-index: 5; /* Labels ÜBER dem Schieber */
-    pointer-events: none; /* Klicks gehen durch die Labels zum Schieber */
-}
-
-.slider-option {
     flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    font-weight: 700;
-    font-size: 0.95rem;
-    color: #8e8e93;
-    transition: color 0.3s ease;
-}
-
-.slider-option.active {
-    color: var(--primary-color);
+    min-width: 150px;
+    height: 32px; /* Sleeker height */
+    background: #FAF2B1; /* SkyBlue from Level 3 */
+    border-radius: 16px;
+    padding: 4px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    user-select: none;
+    overflow: hidden;
 }
 
 .slider-handle {
     position: absolute;
-    top: 6px; /* Gleiches Padding wie oben */
-    bottom: 6px; /* Gleiches Padding wie unten */
-    left: 6px; /* Startposition exakt im Padding */
+    top: 4px;
+    bottom: 4px;
     width: var(--handle-width);
-    background: white;
-    border-radius: 26px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-    z-index: 2; /* Schieber UNTER den Labels */
+    background: #8CB500; /* New requested handle color */
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    z-index: 10;
     cursor: grab;
     display: flex;
     align-items: center;
     justify-content: center;
-    will-change: transform;
+    will-change: left;
 }
 
 .slider-handle:active {
     cursor: grabbing;
+    background: #93A97C; /* Slightly darker shade for feedback */
 }
 
 .handle-inner {
-    width: 36px;
-    height: 3px;
-    background: #f1f1f4;
-    border-radius: 2px;
+    width: 20px;
+    height: 2px;
+    background: rgba(0, 0, 0, 0.2); /* Darker inner line for better contrast on light handle */
+    border-radius: 1px;
 }
 
-.slider-hint {
-    font-size: 0.75rem;
+.slider-hint-full {
+    width: 100%;
+    font-size: 0.7rem;
     color: var(--secondary-color);
-    margin-top: 0.75rem;
+    margin-top: 0.5rem;
     font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    opacity: 0.6;
+    letter-spacing: 0.05em;
+    opacity: 0.5;
+    text-align: center;
 }
 
 .segmented-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
     object-fit: cover;
+    transition: width 0.3s ease, height 0.3s ease;
 }
 
 /* --- Monitor View Styles --- */
@@ -1420,11 +1416,7 @@ input[type="file"] {
 .cleanup-message {
     font-size: 0.85rem;
     padding: 0.5rem 0.75rem !important;
-    margin: 0 !important;
-    text-align: center;
-    width: 100%;
-    max-width: 250px;
-    border-radius: 6px !important;
+    margin: 0.75rem 0 0 0 !important;
 }
 
 @keyframes pulse-bounce {
@@ -1798,11 +1790,15 @@ input[type="file"] {
         gap: 0.5rem;
     }
 
-    /* Slider adjustments for mobile */
-    :root {
-        --handle-width: 160px;
+    /* Mobile specific AppSwitcher overrides */
+    .slider-option-outer span {
+        display: none; /* Hide labels */
     }
-    .slider-option span {
-        font-size: 0.75rem;
+    .segmented-icon {
+        width: 40px; /* Double size */
+        height: 40px;
+    }
+    .app-slider-container {
+        gap: 20px; /* More space for larger icons */
     }
 }

@@ -521,23 +521,17 @@ const AppSwitcher = () => {
     }, [isDragging, position]);
 
     return html`
-        <div class="app-slider-container" ref=${sliderRef}>
-            <div class="slider-track">
-                <div class="slider-labels">
-                    <div class="slider-option left ${position < 50 ? 'active' : ''}">
-                        <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Card" class="segmented-icon" />
-                        <span>Pfoten-Event</span>
-                    </div>
-                    <div class="slider-option right ${position >= 50 ? 'active' : ''}">
-                        <img src="https://hs-bw.com/wp-content/uploads/2024/02/WhatsApp-Huschu.png" alt="Card" class="segmented-icon" />
-                        <span>Pfoten-Card</span>
-                    </div>
-                </div>
+        <div class="app-slider-container">
+            <div class="slider-option-outer left ${position < 50 ? 'active' : ''}">
+                <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Card" class="segmented-icon" />
+                <span>Pfoten-Event</span>
+            </div>
 
+            <div class="slider-track" ref=${sliderRef}>
                 <div 
                     class="slider-handle" 
                     style=${{ 
-                        left: `calc(6px + (${position} / 100) * (100% - var(--handle-width) - 12px))`,
+                        left: `calc(4px + (${position} / 100) * (100% - var(--handle-width) - 8px))`,
                         transition: isDragging ? 'none' : 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
                     }}
                     onMouseDown=${handleStart}
@@ -546,7 +540,13 @@ const AppSwitcher = () => {
                     <div class="handle-inner"></div>
                 </div>
             </div>
-            <div class="slider-hint">Schiebe nach rechts zum Wechseln</div>
+
+            <div class="slider-option-outer right ${position >= 50 ? 'active' : ''}">
+                <img src="https://hs-bw.com/wp-content/uploads/2024/02/WhatsApp-Huschu.png" alt="Card" class="segmented-icon" />
+                <span>Pfoten-Card</span>
+            </div>
+            
+            <div class="slider-hint-full">Schiebe nach rechts zum Wechseln</div>
         </div>
     `;
 };
@@ -2235,8 +2235,8 @@ const CustomerBookingView = ({ setView }) => {
     const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
     const [appStatus, setAppStatus] = useState<AppStatus | null>(null);
 
-    const loadInitialData = async () => {
-        setLoading(true);
+    const loadInitialData = async (loadingValue = true) => {
+        setLoading(loadingValue);
         try {
             const events = await api.getEvents();
             setAllEvents(events);
@@ -2314,7 +2314,7 @@ const CustomerBookingView = ({ setView }) => {
             }
 
             // Immediately reload events to show updated capacity from the database trigger
-            loadInitialData();
+            loadInitialData(false);
 
             // Reset state after successful booking
             setSelectedEventIds([]);
