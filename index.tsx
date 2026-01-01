@@ -2546,6 +2546,32 @@ const App = () => {
     const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [navigationConfirmState, setNavigationConfirmState] = useState({ isOpen: false, targetView: null });
+    const [isBackConfirm, setIsBackConfirm] = useState(false);
+
+
+    useEffect(() => {
+        const handlePopState = (event: PopStateEvent) => {
+            if (hasUnsavedChanges) {
+                // The user tried to navigate back. We immediately push them forward
+                // to cancel the navigation, then show the confirmation modal.
+                window.history.forward();
+                setIsBackConfirm(true);
+                setNavigationConfirmState({ isOpen: true, targetView: null });
+            }
+        };
+
+        if (hasUnsavedChanges) {
+            // Push a "trap" state onto the history stack.
+            window.history.pushState(null, '');
+            // Listen for the user trying to navigate back out of it.
+            window.addEventListener('popstate', handlePopState);
+        }
+
+        // Cleanup: remove the listener when there are no more unsaved changes.
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [hasUnsavedChanges]);
 
 
     useEffect(() => {
@@ -2680,6 +2706,7 @@ const App = () => {
 
     const handleNavigate = (targetView) => {
         if (view === 'manage' && hasUnsavedChanges) {
+            setIsBackConfirm(false);
             setNavigationConfirmState({ isOpen: true, targetView: targetView });
         } else {
             setView(targetView);
@@ -2687,16 +2714,23 @@ const App = () => {
     };
 
     const handleConfirmNavigation = () => {
-        const targetView = navigationConfirmState.targetView;
+        const { targetView } = navigationConfirmState;
+        
+        setHasUnsavedChanges(false);
         setNavigationConfirmState({ isOpen: false, targetView: null });
-        setHasUnsavedChanges(false); // Reset the flag as we are discarding changes
-        if (targetView) {
+
+        if (isBackConfirm) {
+            setIsBackConfirm(false);
+            // Go back two steps: one to undo our `forward()` hack, and one for the actual back action.
+            window.history.go(-2);
+        } else if (targetView) {
             setView(targetView);
         }
     };
 
     const handleCancelNavigation = () => {
         setNavigationConfirmState({ isOpen: false, targetView: null });
+        setIsBackConfirm(false);
     };
 
     if (view === 'monitor') {
