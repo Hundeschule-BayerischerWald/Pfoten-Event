@@ -465,6 +465,27 @@ const toInputTimeString = (date: Date): string => {
 
 // --- KOMPONENTEN ---
 
+const ConfirmNavigationModal = ({ onConfirm, onCancel }) => {
+    return html`
+        <div class="modal-overlay" onClick=${onCancel}>
+            <div class="modal-content" onClick=${e => e.stopPropagation()}>
+                <div class="modal-header">
+                    <h2>Ungespeicherte Änderungen</h2>
+                    <button type="button" class="modal-close-btn" onClick=${onCancel} aria-label="Schließen">×</button>
+                </div>
+                <div class="modal-body">
+                    <p>Du hast Änderungen vorgenommen, die noch nicht gespeichert wurden.</p>
+                    <p>Wenn du die Ansicht jetzt wechselst, gehen diese Änderungen verloren. Bist du sicher, dass du fortfahren möchtest?</p>
+                </div>
+                <div class="modal-footer">
+                     <button type="button" class="btn btn-secondary" onClick=${onCancel}>Hier bleiben</button>
+                     <button type="button" class="btn btn-danger" onClick=${onConfirm}>Änderungen verwerfen</button>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
 const AppSwitcher = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [position, setPosition] = useState(0); // 0 to 100%
@@ -1983,22 +2004,20 @@ const AdminPanel = ({ userRole }) => {
     `;
 };
 
-const BookingManagementPortal = ({ setView, initialBookingId }) => {
+const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChanges: setAppHasUnsavedChanges }) => {
     const [bookingIdInput, setBookingIdInput] = useState(initialBookingId || '');
     const [booking, setBooking] = useState<Booking | null>(null);
     const [allEvents, setAllEvents] = useState<Event[]>([]);
     const [managedEventIds, setManagedEventIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | any>('');
-    const [successMessage, setSuccessMessage] = useState('');
     const [hasChanges, setHasChanges] = useState(false);
     const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
-    const [updateComplete, setUpdateComplete] = useState(false);
+    const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
     const performLookup = async (idToLookup: string) => {
         if (!idToLookup) return;
         setError('');
-        setSuccessMessage('');
         setIsLoading(true);
         setBooking(null);
         try {
@@ -2040,23 +2059,43 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
         }
     }, [managedEventIds, booking]);
 
+    useEffect(() => {
+        setAppHasUnsavedChanges(hasChanges);
+    }, [hasChanges, setAppHasUnsavedChanges]);
+
+    useEffect(() => {
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            if (hasChanges) {
+                event.preventDefault();
+                event.returnValue = ''; // Standard for most browsers
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [hasChanges]);
+
     const handleLookupSubmit = async (e) => {
         e.preventDefault();
         performLookup(bookingIdInput);
     };
 
     const handleSaveChanges = async () => {
-        if (!booking) return;
+        if (!booking || !hasChanges) return;
         setError('');
-        setSuccessMessage('');
         setIsLoading(true);
+        setSaveState('saving');
         try {
             const updatedBooking = await api.updateBooking(booking.bookingId, managedEventIds);
-            setBooking(updatedBooking); // update local state with the saved data
+            setBooking(updatedBooking);
             setManagedEventIds(updatedBooking.bookedEventIds);
-            setUpdateComplete(true);
+            setSaveState('saved');
 
-            // E-Mail-Versand für Update anstoßen
+            setTimeout(() => {
+                setSaveState('idle');
+            }, 2500);
+
             try {
                 const updatedEventsDetails = allEvents
                     .filter(event => updatedBooking.bookedEventIds.includes(event.id))
@@ -2077,11 +2116,12 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
                     }
                 });
             } catch (emailError) {
-                console.warn("E-Mail-Funktion konnte nicht aufgerufen werden. Stelle sicher, dass die Supabase Edge Function 'send-smtp-email' deployed ist.", emailError);
+                console.warn("E-Mail-Funktion konnte nicht aufgerufen werden.", emailError);
             }
 
         } catch (err) {
             setError(err.message);
+            setSaveState('idle');
         } finally {
             setIsLoading(false);
         }
@@ -2096,42 +2136,27 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
     const handleReset = () => {
         setBooking(null);
         setBookingIdInput('');
-        setUpdateComplete(false);
         setError('');
-        setSuccessMessage('');
     }
 
     const { bookedEvents, availableEvents } = useMemo(() => {
         if (!booking) return { bookedEvents: [], availableEvents: [] };
-        const now = new Date(); // Exact current time
+        const now = new Date();
 
         const booked = allEvents
-            .filter(e => managedEventIds.includes(e.id) && new Date(e.date) > now) // Strictly future events
+            .filter(e => managedEventIds.includes(e.id) && new Date(e.date) > now)
             .sort((a, b) => a.date.getTime() - b.date.getTime());
 
         const available = allEvents
             .filter(e => {
                 if (managedEventIds.includes(e.id)) return false;
-                if (new Date(e.date) <= now) return false; // Strictly future events
+                if (new Date(e.date) <= now) return false;
                 if (e.booked_capacity >= e.total_capacity) return false;
                 return true;
             })
             .sort((a, b) => a.date.getTime() - b.date.getTime());
         return { bookedEvents: booked, availableEvents: available };
     }, [allEvents, managedEventIds, booking]);
-
-    if (updateComplete) {
-        return html`
-            <section class="manage-portal-success">
-                <h2>Änderungen gespeichert!</h2>
-                <p class="success-message">Deine Buchung wurde erfolgreich aktualisiert. Wir haben dir eine Bestätigungs-E-Mail gesendet.</p>
-                <div class="manage-footer">
-                    <button class="btn btn-secondary" onClick=${() => setView('booking')}>Zurück zur Eventliste</button>
-                    <button class="btn btn-primary" onClick=${handleReset}>Andere Buchung verwalten</button>
-                </div>
-            </section>
-        `;
-    }
 
     if (!booking) {
         return html`
@@ -2162,7 +2187,6 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
             <p>Buchungsnummer: <strong>${booking.bookingId}</strong></p>
             
             ${error && html`<div class="error-message">${error}</div>`}
-            ${successMessage && html`<p class="success-message">${successMessage}</p>`}
 
             <div class="manage-container">
                 <div class="manage-section">
@@ -2186,7 +2210,7 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
                                 `;
                             })}
                         </ul>
-                    ` : html`<p class="empty-state-small">Du hast aktuell keine Events gebucht.</p>`}
+                    ` : html`<p class="empty-state-small">Du hast aktuell keine zukünftigen Events gebucht.</p>`}
                 </div>
                 <div class="manage-section">
                     <h3>Verfügbare Events</h3>
@@ -2210,10 +2234,13 @@ const BookingManagementPortal = ({ setView, initialBookingId }) => {
                     ` : html`<p class="empty-state-small">Aktuell sind keine weiteren Events verfügbar.</p>`}
                 </div>
             </div>
-            <div class="manage-footer">
+            <div class=${`manage-footer ${hasChanges ? 'is-sticky' : ''}`}>
                 <button class="btn btn-secondary" onClick=${handleReset}>Andere Buchung suchen</button>
-                <button class="btn btn-primary" onClick=${handleSaveChanges} disabled=${!hasChanges || isLoading}>
-                    ${isLoading ? 'Speichert...' : 'Änderungen speichern'}
+                <button 
+                    class=${`btn ${saveState === 'saved' ? 'btn-success' : 'btn-primary'} ${hasChanges && saveState === 'idle' ? 'pulse-on-active' : ''}`}
+                    onClick=${handleSaveChanges} 
+                    disabled=${!hasChanges || isLoading}>
+                    ${isLoading ? 'Speichert...' : saveState === 'saved' ? 'Gespeichert ✔' : 'Änderungen speichern'}
                 </button>
             </div>
        </section>
@@ -2517,6 +2544,8 @@ const App = () => {
     const [installPromptEvent, setInstallPromptEvent] = useState(null);
     const [promoModalData, setPromoModalData] = useState<PromoModalData | null>(null);
     const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [navigationConfirmState, setNavigationConfirmState] = useState({ isOpen: false, targetView: null });
 
 
     useEffect(() => {
@@ -2649,6 +2678,27 @@ const App = () => {
         setIsPromoModalOpen(false);
     };
 
+    const handleNavigate = (targetView) => {
+        if (view === 'manage' && hasUnsavedChanges) {
+            setNavigationConfirmState({ isOpen: true, targetView: targetView });
+        } else {
+            setView(targetView);
+        }
+    };
+
+    const handleConfirmNavigation = () => {
+        const targetView = navigationConfirmState.targetView;
+        setNavigationConfirmState({ isOpen: false, targetView: null });
+        setHasUnsavedChanges(false); // Reset the flag as we are discarding changes
+        if (targetView) {
+            setView(targetView);
+        }
+    };
+
+    const handleCancelNavigation = () => {
+        setNavigationConfirmState({ isOpen: false, targetView: null });
+    };
+
     if (view === 'monitor') {
         if (!session) {
              return html`
@@ -2685,10 +2735,10 @@ const App = () => {
             <${AppSwitcher} />
 
             <nav class="main-nav">
-                <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('booking')}>Buchungsansicht</button>
-                <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('manage')}>Meine Buchungen verwalten</button>
+                <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => handleNavigate('booking')}>Buchungsansicht</button>
+                <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => handleNavigate('manage')}>Meine Buchungen verwalten</button>
                 ${session && html`
-                    <button class=${`btn ${view === 'admin' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => setView('admin')}>Mitarbeiter-Panel</button>
+                    <button class=${`btn ${view === 'admin' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => handleNavigate('admin')}>Mitarbeiter-Panel</button>
                     <button class="btn btn-secondary" onClick=${handleLogout}>Logout</button>
                 `}
             </nav>
@@ -2696,7 +2746,7 @@ const App = () => {
 
         <main>
             ${view === 'booking' && html`<${CustomerBookingView} setView=${setView} />`}
-            ${view === 'manage' && html`<${BookingManagementPortal} setView=${setView} initialBookingId=${initialBookingId} />`}
+            ${view === 'manage' && html`<${BookingManagementPortal} setView=${setView} initialBookingId=${initialBookingId} setHasUnsavedChanges=${setHasUnsavedChanges} />`}
             
             ${session && view === 'admin' && (userRole === 'admin' || userRole === 'mitarbeiter') && html`
                 <${AdminPanel} userRole=${userRole} />
@@ -2723,6 +2773,13 @@ const App = () => {
             <${PromoModal}
                 data=${promoModalData}
                 onClose=${handleClosePromoModal}
+            />
+        `}
+
+        ${navigationConfirmState.isOpen && html`
+            <${ConfirmNavigationModal}
+                onConfirm=${handleConfirmNavigation}
+                onCancel=${handleCancelNavigation}
             />
         `}
     `;
