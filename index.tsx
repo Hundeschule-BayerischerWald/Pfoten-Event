@@ -1213,277 +1213,6 @@ const MonitorView = () => {
     `;
 };
 
-const EventDetailModal = ({ event, onClose }) => {
-    const handleGenerateICS = () => {
-        const startTime = new Date(event.date);
-        // Assume a 60-minute duration for all events
-        const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
-
-        // Format dates to UTC string 'YYYYMMDDTHHMMSSZ'
-        const formatICSDate = (date) => {
-            return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-        };
-
-        const icsContent = [
-            'BEGIN:VCALENDAR',
-            'VERSION:2.0',
-            'BEGIN:VEVENT',
-            `UID:${event.id}@pfoten-event.vercel.app`,
-            `DTSTAMP:${formatICSDate(new Date())}`,
-            `DTSTART:${formatICSDate(startTime)}`,
-            `DTEND:${formatICSDate(endTime)}`,
-            `SUMMARY:${event.title}`,
-            `LOCATION:${event.location}`,
-            `DESCRIPTION:Teilnahme am Event "${event.title}". Gebucht über Pfoten-Event.`,
-            'END:VEVENT',
-            'END:VCALENDAR'
-        ].join('\n');
-
-        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${event.title}.ics`;
-        document.body.appendChild(a);
-        a.click();
-        
-        setTimeout(() => {
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        }, 0);
-    };
-
-    const categoryClass = `event-category-${event.category.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-
-    return html`
-    <div class="modal-overlay" onClick=${onClose}>
-        <div class="modal-content event-detail-modal" onClick=${e => e.stopPropagation()}>
-            <div class="modal-header">
-                <h2>Event-Details</h2>
-                <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
-            </div>
-            <div class="modal-body">
-                <div class=${`event-detail-header ${categoryClass}`}>
-                    <h3>${event.title}</h3>
-                </div>
-                <ul class="event-detail-list">
-                    <li><strong>Datum:</strong> ${new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' }).format(event.date)}</li>
-                    <li><strong>Uhrzeit:</strong> ${formatTime(event.date)}</li>
-                    <li><strong>Ort:</strong> ${event.location}</li>
-                    ${event.trainer && html`<li><strong>Trainer:</strong> ${event.trainer}</li>`}
-                    <li><strong>Auslastung:</strong> ${event.booked_capacity} / ${event.total_capacity} Plätze</li>
-                </ul>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" onClick=${handleGenerateICS}>
-                    Zum Kalender hinzufügen
-                </button>
-            </div>
-        </div>
-    </div>
-    `;
-};
-
-
-// --- CALENDAR VIEW COMPONENT ---
-const CalendarView = ({ setView }) => {
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [events, setEvents] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    const [detailEvent, setDetailEvent] = useState(null);
-    const isEmbedded = useMemo(() => new URLSearchParams(window.location.search).get('embed') === 'true', []);
-
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    useEffect(() => {
-        const loadAllEvents = async () => {
-            setLoading(true);
-            try {
-                const allEvents = await api.getEvents();
-                setEvents(allEvents);
-            } catch (e) {
-                console.error("Failed to load events for calendar", e);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadAllEvents();
-    }, []);
-
-    const { weekDates, weekStart, weekEnd } = useMemo(() => {
-        const start = new Date(currentDate);
-        const day = start.getDay();
-        const diff = start.getDate() - day + (day === 0 ? -6 : 1);
-        const weekStart = new Date(start.setDate(diff));
-        weekStart.setHours(0, 0, 0, 0);
-
-        const dates = Array.from({ length: 7 }).map((_, i) => {
-            const d = new Date(weekStart);
-            d.setDate(d.getDate() + i);
-            return d;
-        });
-        const weekEnd = new Date(dates[6]);
-        weekEnd.setHours(23, 59, 59, 999);
-
-        return { weekDates: dates, weekStart, weekEnd };
-    }, [currentDate]);
-
-    const eventsForWeek = useMemo(() => {
-        return events.filter(event => {
-            const eventDate = new Date(event.date);
-            return eventDate >= weekStart && eventDate <= weekEnd;
-        }).sort((a, b) => a.date.getTime() - b.date.getTime());
-    }, [events, weekStart, weekEnd]);
-    
-    const handlePrevWeek = () => setCurrentDate(d => new Date(d.setDate(d.getDate() - 7)));
-    const handleNextWeek = () => setCurrentDate(d => new Date(d.setDate(d.getDate() + 7)));
-    const handleToday = () => setCurrentDate(new Date());
-
-    const timeSlots = Array.from({ length: (21 - 7) * 2 }).map((_, i) => {
-        const hour = 7 + Math.floor(i / 2);
-        const minute = (i % 2) * 30;
-        return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-    });
-    
-    const handleEventClick = (event) => setDetailEvent(event);
-    const handleCloseModal = () => setDetailEvent(null);
-
-    if (loading) {
-        return html`<div class="loading-state">Lade Kalender...</div>`;
-    }
-
-    const renderDesktopView = () => html`
-        <div class="calendar-grid-wrapper">
-            <div class="calendar-grid">
-                <div class="calendar-grid-header"></div> 
-                ${weekDates.map(date => html`
-                    <div class="calendar-day-header">
-                        <span class="day-name">${new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(date)}</span>
-                        <span class="day-number">${date.getDate()}</span>
-                    </div>
-                `)}
-
-                ${timeSlots.map(time => html`
-                    <div class="calendar-time-label">${time}</div>
-                `)}
-                
-                <div class="calendar-time-rows">
-                    ${timeSlots.map((_, i) => html`<div class="calendar-time-row" key=${i}></div>`)}
-                </div>
-                
-                <div class="calendar-grid-cols-background">
-                    ${Array.from({ length: 8 }).map((_, i) => html`<div class="calendar-grid-col-bg" key=${i}></div>`)}
-                </div>
-
-                ${eventsForWeek.map(event => {
-                    const isFull = event.booked_capacity >= event.total_capacity;
-                    const eventDate = new Date(event.date);
-                    const dayOfWeek = eventDate.getDay(); // Sunday=0, Monday=1
-                    const dayIndex = dayOfWeek === 0 ? 7 : dayOfWeek; 
-                    const startHour = eventDate.getHours();
-                    const startMinute = eventDate.getMinutes();
-
-                    const startRow = (startHour - 7) * 2 + (startMinute / 30) + 2;
-                    const durationRows = 2; // Assume 1 hour
-                    
-                    if (startRow < 2) return null;
-
-                    const style = {
-                        gridColumn: `${dayIndex + 1}`,
-                        gridRow: `${startRow} / span ${durationRows}`
-                    };
-
-                    const categoryClass = `event-category-${event.category.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-
-                    return html`
-                        <div 
-                            class=${`calendar-event ${categoryClass} ${isFull ? 'is-full' : ''}`} 
-                            style=${style} 
-                            title=${`${event.title} (${isFull ? 'Ausgebucht' : formatTime(event.date)})`}
-                            onClick=${isFull ? null : () => handleEventClick(event)}
-                        >
-                            <strong class="calendar-event-title">${event.title}</strong>
-                            <div class="calendar-event-details">
-                                <span>${formatTime(event.date).replace(' Uhr','')}</span>
-                                ${event.trainer && html`<span><small>${event.trainer}</small></span>`}
-                                <span>${isFull ? 'Ausgebucht' : `${event.booked_capacity}/${event.total_capacity}`}</span>
-                            </div>
-                        </div>
-                    `;
-                })}
-            </div>
-        </div>
-    `;
-    
-    const renderMobileView = () => html`
-        <div class="calendar-list-view">
-            ${weekDates.map(date => {
-                const dailyEvents = eventsForWeek.filter(e => new Date(e.date).toDateString() === date.toDateString());
-                if(dailyEvents.length === 0) return null;
-
-                return html`
-                    <div class="calendar-day-column" key=${date.toISOString()}>
-                        <div class="calendar-day-header-mobile">
-                            <span class="day-name">${new Intl.DateTimeFormat('de-DE', { weekday: 'long' }).format(date)}</span>
-                            <span class="day-number">${date.getDate()}. ${new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(date)}</span>
-                        </div>
-                        <ul class="calendar-events-list-mobile">
-                            ${dailyEvents.map(event => {
-                                const isFull = event.booked_capacity >= event.total_capacity;
-                                const categoryClass = `event-category-${event.category.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-                                return html`
-                                <li class=${`calendar-event-mobile ${categoryClass} ${isFull ? 'is-full' : ''}`} onClick=${isFull ? null : () => handleEventClick(event)}>
-                                    <div class="calendar-event-mobile-header">
-                                        <span>${event.title}</span>
-                                        <span>${formatTime(event.date)}</span>
-                                    </div>
-                                    <div class="calendar-event-mobile-details">
-                                         ${event.trainer && html`<span>Trainer: ${event.trainer} &bull; </span>`}
-                                         <span>${isFull ? 'Ausgebucht' : `${event.booked_capacity}/${event.total_capacity} Plätze`}</span>
-                                    </div>
-                                </li>
-                                `
-                            })}
-                        </ul>
-                    </div>
-                `
-            })}
-        </div>
-    `;
-
-    return html`
-        <section class="calendar-view-container">
-            <header class="calendar-header">
-                <div class="calendar-nav">
-                    <button class="btn btn-secondary today-btn" onClick=${handleToday}>Heute</button>
-                    <button class="calendar-nav-arrow" onClick=${handlePrevWeek} aria-label="Vorige Woche">&lsaquo;</button>
-                    <button class="calendar-nav-arrow" onClick=${handleNextWeek} aria-label="Nächste Woche">&rsaquo;</button>
-                </div>
-                 <div class="calendar-title">
-                    <h2 class="calendar-date-display">
-                        ${new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(currentDate)}
-                    </h2>
-                    <span class="calendar-week-badge">KW ${getWeekNumber(currentDate)}</span>
-                </div>
-                <!-- Spacer for alignment, only visible in non-embedded mode with button -->
-                <div class="calendar-nav-spacer" style=${{ visibility: !isEmbedded ? 'visible' : 'hidden' }}>
-                    ${!isEmbedded && html`<button class="btn btn-secondary" onClick=${() => setView('booking')}>Zur Eventliste</button>`}
-                </div>
-            </header>
-            ${isMobile ? renderMobileView() : renderDesktopView()}
-            
-            ${detailEvent && html`<${EventDetailModal} event=${detailEvent} onClose=${handleCloseModal} />`}
-        </section>
-    `;
-};
-
-
 const BookingOverview = ({ userRole }) => {
     const [eventsWithBookings, setEventsWithBookings] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -2852,8 +2581,8 @@ const App = () => {
         // Check for embed mode first, as it overrides other views
         if (params.get('embed') === 'true') {
             setIsEmbedMode(true);
-            setView('kalender');
-            return; // Exit early to avoid other logic
+            setView('booking'); // Fallback to booking view if embed is used without calendar
+            return;
         }
         
         // --- Promo Modal Logic ---
@@ -2909,8 +2638,6 @@ const App = () => {
             setInitialBookingId(bookingIdParam);
         } else if (viewParam === 'monitor') {
             setView('monitor');
-        } else if (viewParam === 'kalender') {
-            setView('kalender');
         }
 
         // Fetch the initial session
@@ -2931,8 +2658,6 @@ const App = () => {
                 const viewParam = params.get('view');
                  if (viewParam === 'monitor') {
                     setView('monitor');
-                } else if (viewParam === 'kalender' && (userRole === 'admin' || userRole === 'mitarbeiter')) {
-                    setView('kalender');
                 } else {
                      setView('admin'); // Default for logged in users
                 }
@@ -2964,7 +2689,7 @@ const App = () => {
 
     // Special render for embed mode
     if (isEmbedMode) {
-        return html`<${CalendarView} setView=${() => {}} />`;
+        return html`<${CustomerBookingView} setView=${() => {}} />`;
     }
 
     const handleLogout = async () => {
@@ -3060,7 +2785,6 @@ const App = () => {
 
             <nav class="main-nav">
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => handleNavigate('booking')}>Eventliste</button>
-                <button class=${`btn ${view === 'kalender' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => handleNavigate('kalender')}>Kalenderansicht</button>
                 <button class=${`btn ${view === 'manage' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => handleNavigate('manage')}>Meine Buchungen</button>
                 ${session && html`
                     <button class=${`btn ${view === 'admin' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => handleNavigate('admin')}>Mitarbeiter-Panel</button>
@@ -3071,7 +2795,6 @@ const App = () => {
 
         <main>
             ${view === 'booking' && html`<${CustomerBookingView} setView=${setView} />`}
-            ${view === 'kalender' && html`<${CalendarView} setView=${setView} />`}
             ${view === 'manage' && html`<${BookingManagementPortal} setView=${setView} initialBookingId=${initialBookingId} setHasUnsavedChanges=${setHasUnsavedChanges} />`}
             
             ${session && view === 'admin' && (userRole === 'admin' || userRole === 'mitarbeiter') && html`
