@@ -173,6 +173,35 @@ function createAdminCancellationEmailHtml(customerName: string, bookingId: strin
   `;
 }
 
+function createAdminEventCancellationEmailHtml(customerName: string, cancelledEvent: any) {
+  return `
+    <!DOCTYPE html><html><head><style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+    .content { padding: 20px; }
+    .header { font-size: 24px; color: #dc3545; margin: 0 0 10px; }
+    .cancelled-event { background-color: #ffebee; border: 1px solid #e57373; color: #c62828; padding: 12px 15px; margin: 20px 0; border-radius: 12px; font-size: 14px; line-height: 1.5; text-align: center; }
+    </style></head><body><div class="container">
+    <img src="${EMAIL_HEADER_IMAGE_URL}" alt="Hundeschule Banner" style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
+    <div class="content">
+        <h1 class="header">Absage eines Events</h1>
+        <p>Hallo ${customerName},</p>
+        <p>leider müssen wir dir mitteilen, dass das folgende von dir gebuchte Event von unserer Seite aus abgesagt werden muss:</p>
+        <div class="cancelled-event">
+            <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">${cancelledEvent.title}</div>
+            <div style="font-size: 14px;">${cancelledEvent.date}</div>
+        </div>
+        <p>Der Platz auf deiner Karte wird dir hierfür selbstverständlich nicht abgezogen.</p>
+        <p>Wir bitten um dein Verständnis und hoffen, dich bald bei einem anderen Event begrüßen zu dürfen.</p>
+        <p style="margin-top: 20px; font-size: 12px; color: #888; text-align: center;">
+          Dies ist eine automatisch generierte E-Mail. Bei Fragen wende dich bitte an unser Team unter ${REPLY_TO_EMAIL}.<br><br>
+          Viele Grüße,<br>
+          dein Team der Hundeschule Bayerischer Wald
+        </p>
+    </div></div></body></html>
+  `;
+}
+
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -198,6 +227,9 @@ serve(async (req) => {
         subject = 'Bestätigung deiner Stornierung';
         const manageUrl = `https://pfoten-event.vercel.app/?view=manage&bookingId=${bookingId}`;
         htmlContent = createAdminCancellationEmailHtml(customerName, bookingId, cancelledEvent, events, manageUrl);
+    } else if (type === 'event-cancelled-by-admin') {
+        subject = 'Wichtige Info: Absage eines Events';
+        htmlContent = createAdminEventCancellationEmailHtml(customerName, cancelledEvent);
     } else if (type === 'new-booking' || type === 'update-booking') {
         // Fetch PDF attachment only for new/update bookings
         try {

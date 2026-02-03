@@ -401,23 +401,66 @@ const api = {
         return updatedEventResult;
     },
     deleteEvent: async (eventId: string): Promise<void> => {
-        // Zuerst prüfen, ob Buchungen für dieses Event existieren
-        const { count, error: countError } = await supabase
+        // 1. Hole alle relevanten Informationen: Event-Details und die gebuchten Kunden
+        const { data: eventData, error: eventError } = await supabase
+            .from('events')
+            .select('*, bookings_events(bookings(id, customers(name, email)))')
+            .eq('id', eventId)
+            .single();
+
+        if (eventError) {
+            throw new Error("Fehler beim Abrufen der Event-Daten.");
+        }
+        if (!eventData) {
+            // Event existiert nicht (mehr), also ist die Aktion erfolgreich.
+            return;
+        }
+
+        // 2. Bereite die Benachrichtigungen vor, falls Teilnehmer vorhanden sind
+        const participants = eventData.bookings_events
+            .map(be => be.bookings)
+            .filter(b => b && b.customers)
+            .map(b => ({ name: (b.customers as any).name, email: (b.customers as any).email }));
+
+        if (participants.length > 0) {
+            try {
+                const emailPromises = participants.map(participant =>
+                    supabase.functions.invoke('send-smtp-email', {
+                        body: {
+                            type: 'event-cancelled-by-admin',
+                            customerName: participant.name,
+                            customerEmail: participant.email,
+                            cancelledEvent: {
+                                title: eventData.title,
+                                date: new Date(eventData.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
+                            }
+                        }
+                    })
+                );
+                await Promise.all(emailPromises);
+            } catch (emailError) {
+                console.warn("Warnung: Das Senden von Stornierungs-E-Mails ist fehlgeschlagen, aber das Event wird trotzdem gelöscht.", emailError);
+            }
+        }
+
+        // 3. Lösche die Verknüpfungen in bookings_events
+        const { error: deleteLinksError } = await supabase
             .from('bookings_events')
-            .select('*', { count: 'exact', head: true })
+            .delete()
             .eq('event_id', eventId);
 
-        if (countError) {
-            throw new Error("Fehler beim Prüfen der Event-Buchungen.");
+        if (deleteLinksError) {
+            throw new Error("Fehler beim Löschen der Event-Verknüpfungen: " + deleteLinksError.message);
         }
-        if (count > 0) {
-            throw new Error(`Dieses Event kann nicht gelöscht werden, da bereits ${count} Buchung(en) dafür existieren.`);
-        }
-        
-        // Wenn keine Buchungen vorhanden sind, das Event löschen
-        const { error: deleteError } = await supabase.from('events').delete().eq('id', eventId);
-        if (deleteError) {
-            throw new Error("Event konnte nicht gelöscht werden.");
+
+        // 4. Lösche das Event selbst
+        const { error: deleteEventError } = await supabase
+            .from('events')
+            .delete()
+            .eq('id', eventId);
+
+        if (deleteEventError) {
+            throw new Error("Das Event konnte nicht endgültig gelöscht werden: " + deleteEventError.message);
         }
     },
     cleanupOldEvents: async (): Promise<{ deletedCount: number }> => {
@@ -982,7 +1025,11 @@ const EventFormModal = ({ event, onSave, onClose }) => {
     `;
 };
 
-const ConfirmDeleteModal = ({ onConfirm, onClose, error, loading }) => {
+const ConfirmDeleteModal = ({ onConfirm, onClose, error, loading, bookingsCount }) => {
+    const message = bookingsCount > 0
+        ? `Dieses Event hat ${bookingsCount} Buchung(en). Alle Teilnehmer werden per E-Mail über die Absage informiert. Bist du sicher, dass du dieses Event endgültig löschen möchtest?`
+        : `Bist du sicher, dass du dieses Event endgültig löschen möchtest?`;
+    
     return html`
         <div class="modal-overlay" onClick=${onClose}>
             <div class="modal-content" onClick=${e => e.stopPropagation()}>
@@ -991,7 +1038,7 @@ const ConfirmDeleteModal = ({ onConfirm, onClose, error, loading }) => {
                     <button type="button" class="modal-close-btn" onClick=${onClose} aria-label="Schließen">×</button>
                 </div>
                 <div class="modal-body">
-                    <p>Bist du sicher, dass du dieses Event endgültig löschen möchtest?</p>
+                    <p>${message}</p>
                     <p><strong>Diese Aktion kann nicht rückgängig gemacht werden.</strong></p>
                     ${error && html`<p class="error-message">${error}</p>`}
                 </div>
@@ -1777,6 +1824,7 @@ const AdminPanel = ({ userRole }) => {
     const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState(null);
     const [deletingEventId, setDeletingEventId] = useState(null);
+    const [deletingEventBookingsCount, setDeletingEventBookingsCount] = useState(0);
     const [deleteError, setDeleteError] = useState('');
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'events', 'status'
@@ -1817,13 +1865,15 @@ const AdminPanel = ({ userRole }) => {
         setIsModalOpen(true);
     };
 
-    const handleStartDelete = (eventId) => {
+    const handleStartDelete = (event) => {
         setDeleteError('');
-        setDeletingEventId(eventId);
+        setDeletingEventId(event.id);
+        setDeletingEventBookingsCount(event.booked_capacity);
     };
 
     const handleCancelDelete = () => {
         setDeletingEventId(null);
+        setDeletingEventBookingsCount(0);
     };
 
     const handleConfirmDelete = async () => {
@@ -1833,6 +1883,7 @@ const AdminPanel = ({ userRole }) => {
         try {
             await api.deleteEvent(deletingEventId);
             setDeletingEventId(null);
+            setDeletingEventBookingsCount(0);
             loadEvents();
         } catch (err) {
             setDeleteError(err.message);
@@ -1968,9 +2019,7 @@ const AdminPanel = ({ userRole }) => {
                                        <button class="btn btn-secondary" onClick=${() => handleCopy(event)}>Kopieren</button>
                                        <button 
                                             class="btn btn-danger" 
-                                            onClick=${() => handleStartDelete(event.id)}
-                                            disabled=${event.booked_capacity > 0}
-                                            title=${event.booked_capacity > 0 ? 'Event hat Buchungen und kann nicht gelöscht werden' : 'Event löschen'}
+                                            onClick=${() => handleStartDelete(event)}
                                        >Löschen</button>
                                    </div>
                                 </li>
@@ -1993,6 +2042,7 @@ const AdminPanel = ({ userRole }) => {
                 onClose=${handleCancelDelete}
                 error=${deleteError}
                 loading=${deleteLoading}
+                bookingsCount=${deletingEventBookingsCount}
             />
         `}
         ${isCsvModalOpen && html`
@@ -2009,7 +2059,6 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
     const [booking, setBooking] = useState<Booking | null>(null);
     const [allEvents, setAllEvents] = useState<Event[]>([]);
     const [managedEventIds, setManagedEventIds] = useState<string[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | any>('');
     const [hasChanges, setHasChanges] = useState(false);
     const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
@@ -2018,7 +2067,7 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
     const performLookup = async (idToLookup: string) => {
         if (!idToLookup) return;
         setError('');
-        setIsLoading(true);
+        setSaveState('saving');
         setBooking(null);
         try {
             const foundBooking = await api.getBookingById(idToLookup.trim());
@@ -2031,7 +2080,7 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
         } catch (err) {
             setError(err.message);
         } finally {
-            setIsLoading(false);
+            setSaveState('idle');
         }
     };
 
@@ -2043,10 +2092,10 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
 
     useEffect(() => {
         if (booking) {
-            setIsLoading(true);
+            setSaveState('saving');
             api.getEvents().then(events => {
                 setAllEvents(events.map(e => ({...e, date: new Date(e.date)})));
-                setIsLoading(false);
+                setSaveState('idle');
             });
         }
     }, [booking]);
@@ -2084,7 +2133,6 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
     const handleSaveChanges = async () => {
         if (!booking || !hasChanges) return;
         setError('');
-        setIsLoading(true);
         setSaveState('saving');
         try {
             const updatedBooking = await api.updateBooking(booking.bookingId, managedEventIds);
@@ -2122,8 +2170,10 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
         } catch (err) {
             setError(err.message);
             setSaveState('idle');
-        } finally {
-            setIsLoading(false);
+            // FIX: Revert optimistic UI on error to reflect the actual database state
+            if (booking) {
+                setManagedEventIds(booking.bookedEventIds);
+            }
         }
     };
 
@@ -2169,8 +2219,8 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
                         <input type="text" id="bookingId" name="bookingId" value=${bookingIdInput} onInput=${e => setBookingIdInput(e.target.value)} required placeholder="z.B. Bello-12345" />
                     </div>
                     ${error && html`<div class="error-message">${error}</div>`}
-                    <button type="submit" class="btn btn-primary" disabled=${isLoading}>
-                        ${isLoading ? 'Sucht...' : 'Buchung suchen'}
+                    <button type="submit" class="btn btn-primary" disabled=${saveState === 'saving'}>
+                        ${saveState === 'saving' ? 'Sucht...' : 'Buchung suchen'}
                     </button>
                 </form>
                  <button class="forgot-booking-id-btn" onClick=${() => setIsForgotModalOpen(true)}>
@@ -2239,8 +2289,8 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
                 <button 
                     class=${`btn ${saveState === 'saved' ? 'btn-success' : 'btn-primary'} ${hasChanges && saveState === 'idle' ? 'pulse-on-active' : ''}`}
                     onClick=${handleSaveChanges} 
-                    disabled=${!hasChanges || isLoading}>
-                    ${isLoading ? 'Speichert...' : saveState === 'saved' ? 'Gespeichert ✔' : 'Änderungen speichern'}
+                    disabled=${!hasChanges || saveState === 'saving'}>
+                    ${saveState === 'saving' ? 'Speichert...' : saveState === 'saved' ? 'Gespeichert ✔' : 'Änderungen speichern'}
                 </button>
             </div>
        </section>
