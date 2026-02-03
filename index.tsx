@@ -401,66 +401,13 @@ const api = {
         return updatedEventResult;
     },
     deleteEvent: async (eventId: string): Promise<void> => {
-        // 1. Hole alle relevanten Informationen: Event-Details und die gebuchten Kunden
-        const { data: eventData, error: eventError } = await supabase
-            .from('events')
-            .select('*, bookings_events(bookings(id, customers(name, email)))')
-            .eq('id', eventId)
-            .single();
-
-        if (eventError) {
-            throw new Error("Fehler beim Abrufen der Event-Daten.");
-        }
-        if (!eventData) {
-            // Event existiert nicht (mehr), also ist die Aktion erfolgreich.
-            return;
-        }
-
-        // 2. Bereite die Benachrichtigungen vor, falls Teilnehmer vorhanden sind
-        const participants = eventData.bookings_events
-            .map(be => be.bookings)
-            .filter(b => b && b.customers)
-            .map(b => ({ name: (b.customers as any).name, email: (b.customers as any).email }));
-
-        if (participants.length > 0) {
-            try {
-                const emailPromises = participants.map(participant =>
-                    supabase.functions.invoke('send-smtp-email', {
-                        body: {
-                            type: 'event-cancelled-by-admin',
-                            customerName: participant.name,
-                            customerEmail: participant.email,
-                            cancelledEvent: {
-                                title: eventData.title,
-                                date: new Date(eventData.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
-                            }
-                        }
-                    })
-                );
-                await Promise.all(emailPromises);
-            } catch (emailError) {
-                console.warn("Warnung: Das Senden von Stornierungs-E-Mails ist fehlgeschlagen, aber das Event wird trotzdem gelöscht.", emailError);
-            }
-        }
-
-        // 3. Lösche die Verknüpfungen in bookings_events
-        const { error: deleteLinksError } = await supabase
-            .from('bookings_events')
-            .delete()
-            .eq('event_id', eventId);
-
-        if (deleteLinksError) {
-            throw new Error("Fehler beim Löschen der Event-Verknüpfungen: " + deleteLinksError.message);
-        }
-
-        // 4. Lösche das Event selbst
-        const { error: deleteEventError } = await supabase
-            .from('events')
-            .delete()
-            .eq('id', eventId);
-
-        if (deleteEventError) {
-            throw new Error("Das Event konnte nicht endgültig gelöscht werden: " + deleteEventError.message);
+        const { error } = await supabase.functions.invoke('admin-delete-event', {
+            body: { eventId }
+        });
+        if (error) {
+            console.error("Fehler beim Löschen des Events über Edge Function:", error);
+            const errorDetails = (error as any).context?.json?.error || error.message;
+            throw new Error(`Das Event konnte nicht gelöscht werden. Grund: ${errorDetails}`);
         }
     },
     cleanupOldEvents: async (): Promise<{ deletedCount: number }> => {
@@ -2145,24 +2092,29 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
             }, 2500);
 
             try {
-                const updatedEventsDetails = allEvents
-                    .filter(event => updatedBooking.bookedEventIds.includes(event.id))
+                // KORRIGIERT: Filtere nach zukünftigen Events, bevor die E-Mail gesendet wird
+                const now = new Date();
+                const futureEventsForEmail = allEvents
+                    .filter(event => updatedBooking.bookedEventIds.includes(event.id) && new Date(event.date) > now)
                     .map(e => ({
                         title: e.title,
                         date: new Date(e.date).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
                         location: e.location,
                         category: e.category
                     }));
-                
-                await supabase.functions.invoke('send-smtp-email', {
-                    body: {
-                        type: 'update-booking',
-                        customerName: updatedBooking.customer.name,
-                        customerEmail: updatedBooking.customer.email,
-                        bookingId: updatedBooking.bookingId,
-                        events: updatedEventsDetails
-                    }
-                });
+
+                // Sende die E-Mail nur, wenn es zukünftige Events gibt, über die berichtet werden kann
+                if (futureEventsForEmail.length > 0) {
+                    await supabase.functions.invoke('send-smtp-email', {
+                        body: {
+                            type: 'update-booking',
+                            customerName: updatedBooking.customer.name,
+                            customerEmail: updatedBooking.customer.email,
+                            bookingId: updatedBooking.bookingId,
+                            events: futureEventsForEmail
+                        }
+                    });
+                }
             } catch (emailError) {
                 console.warn("E-Mail-Funktion konnte nicht aufgerufen werden.", emailError);
             }
