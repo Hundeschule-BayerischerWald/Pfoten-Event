@@ -1,5 +1,3 @@
-
-
 :root {
     --primary-color: #007bff;
     --primary-hover-color: #0056b3;
@@ -1557,73 +1555,27 @@ input[type="file"] {
     }
 }
 
-.status-banner {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
+.static-status-info {
+    background-color: #e9ecef;
+    background-image: repeating-linear-gradient(
+      45deg,
+      #ced4da,
+      #ced4da 10px,
+      #e9ecef 10px,
+      #e9ecef 20px
+    );
+    border: 1px solid #ced4da;
     border-radius: var(--border-radius);
+    padding: 1.5rem;
     margin-bottom: 2rem;
-    color: white;
+    text-align: center;
     box-shadow: var(--box-shadow);
 }
-.status-banner.is-active {
-    background: linear-gradient(135deg, #28a745, #218838);
-}
-.status-banner.is-cancelled {
-    background: linear-gradient(135deg, #dc3545, #c82333);
-}
-.status-banner.is-partial {
-    background: linear-gradient(135deg, #28a745, #ffc107 55%, #dc3545 85%);
-}
-.status-banner-icon {
-    flex-shrink: 0;
-}
-.status-banner-content {
-    flex-grow: 1;
-    text-align: center;
-}
-.status-banner-message {
+.static-status-info p {
     margin: 0;
+    font-size: 1.2rem;
     font-weight: 600;
-    font-size: 1.1rem;
-    white-space: pre-wrap;
-}
-.status-banner-time {
-    margin: 0.25rem 0 0;
-    font-size: 0.85rem;
-    opacity: 0.8;
-}
-
-.live-status-manager {
-    padding-top: 1rem;
-}
-.live-status-manager h2 {
-    margin-top: 0;
-}
-.live-status-manager p {
-    color: var(--secondary-color);
-    margin-bottom: 2rem;
-}
-.status-selection {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-.status-selection .btn {
-    flex: 1;
-    padding: 1rem;
-    font-size: 1.1rem;
-}
-.form-footer {
-    margin-top: 1.5rem;
-    text-align: right;
-}
-.form-footer .btn {
-    width: auto;
-}
-.form-footer .error-message, .form-footer .success-message {
-    text-align: left;
+    color: var(--text-color);
 }
 
 

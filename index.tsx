@@ -97,53 +97,6 @@ const api = {
         }
         return data;
     },
-    getAppStatus: async (): Promise<AppStatus | null> => {
-        // Fetches the single status row. Assumes id=1 for the single status entry.
-        const { data, error } = await supabase.from('app_status').select('*').eq('id', 1).maybeSingle();
-        if (error) {
-            console.error('Error fetching app status:', error);
-            throw error; // Let the calling function handle the error
-        }
-        return data;
-    },
-    updateAppStatus: async (status: 'active' | 'cancelled' | 'partial', message: string): Promise<AppStatus> => {
-        const { data, error } = await supabase.from('app_status').upsert({
-            id: 1,
-            status,
-            message,
-        }).select().single();
-    
-        if (error) {
-            console.error('Fehler beim Aktualisieren des App-Status (Detail):', JSON.stringify(error, null, 2));
-            
-            if (error.code === '42501') { // "insufficient_privilege" from Postgres
-                throw new Error("Fehlende Berechtigung. Bitte stelle sicher, dass die Rolle 'mitarbeiter' die nötigen Zugriffsrechte für die 'app_status' Tabelle hat. Führe das SQL-Skript aus der Anleitung aus.");
-            }
-            
-            const userMessage = `Status konnte nicht aktualisiert werden. Grund: ${error.message}.`;
-            throw new Error(userMessage);
-        }
-        if (!data) {
-             throw new Error("Status konnte nicht aktualisiert werden, da keine Daten von der Datenbank zurückgegeben wurden.");
-        }
-        return data;
-    },
-    subscribeToAppStatus: (callback: (newStatus: AppStatus) => void): RealtimeChannel => {
-        const channel = supabase.channel('app_status_changes')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'app_status', filter: 'id=eq.1' },
-                (payload) => {
-                    callback(payload.new as AppStatus);
-                }
-            )
-            .subscribe((status, err) => {
-                 if (err) {
-                    console.error('Realtime subscription error:', err);
-                }
-            });
-        return channel;
-    },
     getEvents: async (): Promise<Event[]> => {
         const { data, error } = await supabase.from('events').select('*').order('date', { ascending: true });
         if (error) {
@@ -576,45 +529,10 @@ const PromoModal = ({ data, onClose }) => {
     `;
 };
 
-const LiveStatusBanner = ({ statusData }) => {
-    if (!statusData || !statusData.status) {
-        return null;
-    }
-
-    const isCancelled = statusData.status === 'cancelled';
-    const isPartial = statusData.status === 'partial';
-    const bannerClass = `status-banner ${isCancelled ? 'is-cancelled' : isPartial ? 'is-partial' : 'is-active'}`;
-    const defaultMessage = isCancelled
-        ? 'Die Hundeschule fällt aus.'
-        : isPartial
-        ? 'Einschränkungen im Betrieb. Bitte Details beachten.'
-        : 'Alle Stunden finden wie geplant statt.';
-
-    const CheckIcon = () => html`
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-banner-icon">
-            <path d="M20 6 9 17l-5-5"/>
-        </svg>
-    `;
-    const CrossIcon = () => html`
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-banner-icon">
-            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-        </svg>
-    `;
-    const WarningIcon = () => html`
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="status-banner-icon">
-            <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>
-        </svg>
-    `;
-
+const StaticStatusBanner = () => {
     return html`
-        <div class=${bannerClass} role="alert" aria-live="polite">
-            ${isCancelled ? html`<${CrossIcon} />` : isPartial ? html`<${WarningIcon} />` : html`<${CheckIcon} />`}
-            <div class="status-banner-content">
-                <p class="status-banner-message">${statusData.message || defaultMessage}</p>
-                <p class="status-banner-time">
-                    Status aktualisiert um ${formatStatusTime(new Date(statusData.updated_at))} Uhr
-                </p>
-            </div>
+        <div class="static-status-info" role="status">
+            <p>Den Status findest du ab sofort nur noch in unserer neuen App!</p>
         </div>
     `;
 };
@@ -1668,102 +1586,6 @@ const CsvImportModal = ({ onImport, onClose }) => {
     `;
 };
 
-const LiveStatusManager = () => {
-    const [status, setStatus] = useState<'active' | 'cancelled' | 'partial'>('active');
-    const [message, setMessage] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState(false);
-
-    useEffect(() => {
-        const fetchStatus = async () => {
-            setLoading(true);
-            const currentStatus = await api.getAppStatus();
-            if (currentStatus) {
-                setStatus(currentStatus.status);
-                setMessage(currentStatus.message || '');
-            }
-            setLoading(false);
-        };
-        fetchStatus();
-    }, []);
-
-    const handleSave = async (e) => {
-        e.preventDefault();
-        setSaving(true);
-        setError('');
-        setSuccess(false);
-        try {
-            await api.updateAppStatus(status, message);
-            setSuccess(true);
-            setTimeout(() => setSuccess(false), 3000); // Hide success message after 3s
-        } catch (err) {
-            const errorMessage = (err instanceof Error) ? err.message : String(err);
-            setError(errorMessage);
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    if (loading) {
-        return html`<div class="loading-state">Lade Live-Status...</div>`;
-    }
-
-    return html`
-        <div class="live-status-manager">
-            <h2>Live-Status Steuerung</h2>
-            <p>Ändere hier den globalen Status der App. Die Änderung wird allen Kunden in Echtzeit angezeigt.</p>
-            <form onSubmit=${handleSave}>
-                <div class="status-selection">
-                    <button 
-                        type="button" 
-                        class=${`btn ${status === 'active' ? 'btn-success' : 'btn-secondary'}`}
-                        onClick=${() => setStatus('active')}
-                    >
-                        Status 'aktiv'
-                    </button>
-                    <button 
-                        type="button" 
-                        class=${`btn ${status === 'partial' ? 'btn-warning' : 'btn-secondary'}`}
-                        onClick=${() => setStatus('partial')}
-                    >
-                        Status 'mit Einschränkungen'
-                    </button>
-                    <button 
-                        type="button" 
-                        class=${`btn ${status === 'cancelled' ? 'btn-danger' : 'btn-secondary'}`}
-                        onClick=${() => setStatus('cancelled')}
-                    >
-                        Status 'unterbrochen'
-                    </button>
-                </div>
-                <div class="form-group">
-                    <label for="status-message">Optionale Nachricht (wird den Kunden angezeigt)</label>
-                    <textarea 
-                        id="status-message" 
-                        value=${message}
-                        onInput=${e => setMessage(e.target.value)}
-                        placeholder=${
-                            status === 'active' ? 'Standard: Alle Stunden finden wie geplant statt.' :
-                            status === 'partial' ? 'z.B. Welpenstunde findet statt, Level 2 fällt aus.' :
-                            'Standard: Die Hundeschule fällt aus.'
-                        }
-                    ></textarea>
-                </div>
-                <div class="form-footer">
-                    <button type="submit" class="btn btn-primary" disabled=${saving}>
-                        ${saving ? 'Speichert...' : 'Live-Status aktualisieren'}
-                    </button>
-                    ${error && html`<p class="error-message">${error}</p>`}
-                    ${success && html`<p class="success-message">Status erfolgreich aktualisiert!</p>`}
-                </div>
-            </form>
-        </div>
-    `;
-};
-
-
 const AdminPanel = ({ userRole }) => {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -1774,7 +1596,7 @@ const AdminPanel = ({ userRole }) => {
     const [deletingEventBookingsCount, setDeletingEventBookingsCount] = useState(0);
     const [deleteError, setDeleteError] = useState('');
     const [deleteLoading, setDeleteLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'events', 'status'
+    const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'events'
     const [cleanupLoading, setCleanupLoading] = useState(false);
     const [cleanupMessage, setCleanupMessage] = useState({ text: '', type: '' });
     const [isConfirmingCleanup, setIsConfirmingCleanup] = useState(false);
@@ -1897,14 +1719,9 @@ const AdminPanel = ({ userRole }) => {
                     class=${`btn ${activeTab === 'events' ? 'btn-primary' : 'btn-secondary'}`}
                     onClick=${() => setActiveTab('events')}
                 >Event Verwaltung</button>
-                <button 
-                    class=${`btn ${activeTab === 'status' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick=${() => setActiveTab('status')}
-                >Live-Status</button>
             </div>
 
             ${activeTab === 'overview' && html`<${BookingOverview} userRole=${userRole} />`}
-            ${activeTab === 'status' && html`<${LiveStatusManager} />`}
 
             ${activeTab === 'events' && html`
                 <div class="event-management-view">
@@ -2262,7 +2079,6 @@ const CustomerBookingView = ({ setView }) => {
     const [successfulBookingDetails, setSuccessfulBookingDetails] = useState(null);
     const [isEmailExistsModalOpen, setIsEmailExistsModalOpen] = useState(false);
     const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
-    const [appStatus, setAppStatus] = useState<AppStatus | null>(null);
 
     const loadInitialData = async (loadingValue = true) => {
         setLoading(loadingValue);
@@ -2278,25 +2094,6 @@ const CustomerBookingView = ({ setView }) => {
 
     useEffect(() => {
         loadInitialData();
-        
-        // Fetch initial status and subscribe to realtime updates
-        api.getAppStatus()
-           .then(setAppStatus)
-           .catch(err => {
-                console.error("Could not load initial app status. Make sure the 'app_status' table was created correctly via the SQL Editor.", err.message);
-                // Optionally set an error state to show in the UI
-           });
-
-        const channel = api.subscribeToAppStatus((newStatus) => {
-            setAppStatus(newStatus);
-        });
-
-        // Cleanup subscription on component unmount
-        return () => {
-            if (channel) {
-                supabase.removeChannel(channel);
-            }
-        };
     }, []);
 
     const handleSelectEvent = (eventId: string) => {
@@ -2408,7 +2205,7 @@ const CustomerBookingView = ({ setView }) => {
     return html`
         <main class="main-container">
             <section class="events-section">
-                <${LiveStatusBanner} statusData=${appStatus} />
+                <${StaticStatusBanner} />
                 <div class="events-container-box">
                     <div class="month-navigator">
                         <h2>Eventliste Hundeschule</h2>
