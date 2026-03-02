@@ -488,7 +488,7 @@ const AppSwitcher = () => {
     return html`
         <div class="app-slider-container">
             <div class="slider-option-outer left ${position < 50 ? 'active' : ''}">
-                <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Card" class="segmented-icon" />
+                <img src="https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png" alt="Card" class="segmented-icon" />
                 <span>Pfoten-Event</span>
             </div>
 
@@ -1073,7 +1073,7 @@ const MonitorView = () => {
         <div class="monitor-view">
             <header class="monitor-header">
                 <div class="monitor-brand">
-                    <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Logo" class="monitor-logo" />
+                    <img src="https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png" alt="Logo" class="monitor-logo" />
                     <div class="monitor-title">
                         <h1>Pfoten-Event Monitor</h1>
                         <p>Willkommen in der Hundeschule</p>
@@ -1088,7 +1088,7 @@ const MonitorView = () => {
             <main class="monitor-content">
                 ${layout === 'idle' && html`
                     <div class="monitor-idle">
-                        <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Logo" class="monitor-idle-logo" />
+                        <img src="https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png" alt="Logo" class="monitor-idle-logo" />
                         <h2>Kein Kurs aktuell</h2>
                         <p>Der nächste Kurs findet am ${nextEvent ? formatDate(nextEvent.date) + ' um ' + formatTime(nextEvent.date) : 'demnächst'} statt.</p>
                     </div>
@@ -2569,13 +2569,13 @@ const App = () => {
                     onClick=${installPromptEvent ? handleInstallClick : null}
                     title=${installPromptEvent ? 'App auf diesem Gerät installieren' : ''}
                 >
-                    <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Pfoten-Event Logo" class="header-logo" />
+                    <img src="https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png" alt="Pfoten-Event Logo" class="header-logo" />
                     ${installPromptEvent && html`
                         <span class="install-prompt-text">App installieren</span>
                     `}
                 </div>
                 <div class="header-text">
-                    <h1>Netzwerk Canicanum</h1>
+                    <h1>Pfoten-Event</h1>
                     <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
                 </div>
             </div>
