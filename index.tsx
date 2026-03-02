@@ -430,91 +430,6 @@ const ConfirmNavigationModal = ({ onConfirm, onCancel }) => {
     `;
 };
 
-const AppSwitcher = () => {
-    const [isDragging, setIsDragging] = useState(false);
-    const [position, setPosition] = useState(0); // 0 to 100%
-    const sliderRef = useRef(null);
-
-    const handleStart = (e) => {
-        setIsDragging(true);
-    };
-
-    const handleMove = (e) => {
-        if (!isDragging || !sliderRef.current) return;
-        
-        const rect = sliderRef.current.getBoundingClientRect();
-        const clientX = e.type.includes('touch') ? (e.touches ? e.touches[0].clientX : e.clientX) : e.clientX;
-        const relativeX = clientX - rect.left;
-        let percentage = (relativeX / rect.width) * 100;
-        
-        // Clamp between 0 and 100
-        percentage = Math.max(0, Math.min(100, percentage));
-        setPosition(percentage);
-    };
-
-    const handleEnd = () => {
-        if (!isDragging) return;
-        setIsDragging(false);
-        
-        if (position > 85) {
-            // Trigger navigation
-            window.location.href = "https://pfotencard.vercel.app/";
-        } else {
-            // Snap back
-            setPosition(0);
-        }
-    };
-
-    useEffect(() => {
-        if (isDragging) {
-            window.addEventListener('mousemove', handleMove);
-            window.addEventListener('mouseup', handleEnd);
-            window.addEventListener('touchmove', handleMove);
-            window.addEventListener('touchend', handleEnd);
-        } else {
-            window.removeEventListener('mousemove', handleMove);
-            window.removeEventListener('mouseup', handleEnd);
-            window.removeEventListener('touchmove', handleMove);
-            window.removeEventListener('touchend', handleEnd);
-        }
-        return () => {
-            window.removeEventListener('mousemove', handleMove);
-            window.removeEventListener('mouseup', handleEnd);
-            window.removeEventListener('touchmove', handleMove);
-            window.removeEventListener('touchend', handleEnd);
-        };
-    }, [isDragging, position]);
-
-    return html`
-        <div class="app-slider-container">
-            <div class="slider-option-outer left ${position < 50 ? 'active' : ''}">
-                <img src="https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png" alt="Card" class="segmented-icon" />
-                <span>Pfoten-Event</span>
-            </div>
-
-            <div class="slider-track" ref=${sliderRef}>
-                <div 
-                    class="slider-handle" 
-                    style=${{ 
-                        left: `calc(4px + (${position} / 100) * (100% - var(--handle-width) - 8px))`,
-                        transition: isDragging ? 'none' : 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
-                    }}
-                    onMouseDown=${handleStart}
-                    onTouchStart=${handleStart}
-                >
-                    <div class="handle-inner"></div>
-                </div>
-            </div>
-
-            <div class="slider-option-outer right ${position >= 50 ? 'active' : ''}">
-                <img src="https://hs-bw.com/wp-content/uploads/2024/02/WhatsApp-Huschu.png" alt="Card" class="segmented-icon" />
-                <span>Pfoten-Card</span>
-            </div>
-            
-            <div class="slider-hint-full">Schiebe nach rechts zum Wechseln</div>
-        </div>
-    `;
-};
 
 const PromoModal = ({ data, onClose }) => {
     if (!data.image_url) return null;
@@ -529,13 +444,6 @@ const PromoModal = ({ data, onClose }) => {
     `;
 };
 
-const StaticStatusBanner = () => {
-    return html`
-        <div class="static-status-info" role="status">
-            <p>Den Status findest du ab sofort nur noch in unserer neuen App!</p>
-        </div>
-    `;
-};
 
 const EventLegend = () => {
     return html`
@@ -2205,7 +2113,6 @@ const CustomerBookingView = ({ setView }) => {
     return html`
         <main class="main-container">
             <section class="events-section">
-                <${StaticStatusBanner} />
                 <div class="events-container-box">
                     <div class="month-navigator">
                         <h2>Eventliste Hundeschule</h2>
@@ -2580,7 +2487,6 @@ const App = () => {
                 </div>
             </div>
             
-            <${AppSwitcher} />
 
             <nav class="main-nav">
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => handleNavigate('booking')}>Eventliste</button>
