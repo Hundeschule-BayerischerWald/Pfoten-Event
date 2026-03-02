@@ -2476,13 +2476,13 @@ const App = () => {
                     onClick=${installPromptEvent ? handleInstallClick : null}
                     title=${installPromptEvent ? 'App auf diesem Gerät installieren' : ''}
                 >
-                    <img src="https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png" alt="Pfoten-Event Logo" class="header-logo" />
+                    <img src="https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png" alt="Netzwerk Canicanum Logo" class="header-logo" />
                     ${installPromptEvent && html`
                         <span class="install-prompt-text">App installieren</span>
                     `}
                 </div>
                 <div class="header-text">
-                    <h1>Pfoten-Event</h1>
+                    <h1>Netzwerk Canicanum</h1>
                     <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
                 </div>
             </div>
