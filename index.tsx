@@ -2579,7 +2579,6 @@ const App = () => {
                 </div>
             </div>
             
-            <${AppSwitcher} />
 
             <nav class="main-nav">
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => handleNavigate('booking')}>Eventliste</button>
