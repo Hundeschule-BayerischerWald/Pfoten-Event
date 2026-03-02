@@ -983,7 +983,7 @@ const MonitorView = () => {
                 <div class="monitor-brand">
                     <img src="https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png" alt="Logo" class="monitor-logo" />
                     <div class="monitor-title">
-                        <h1>Pfoten-Event Monitor</h1>
+                        <h1>Netzwerk Canicanum Monitor</h1>
                         <p>Willkommen in der Hundeschule</p>
                     </div>
                 </div>
