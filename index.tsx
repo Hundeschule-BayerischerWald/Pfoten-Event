@@ -1828,18 +1828,16 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
                         category: e.category
                     }));
 
-                // Sende die E-Mail nur, wenn es zukünftige Events gibt, über die berichtet werden kann
-                if (futureEventsForEmail.length > 0) {
-                    await supabase.functions.invoke('send-smtp-email', {
-                        body: {
-                            type: 'update-booking',
-                            customerName: updatedBooking.customer.name,
-                            customerEmail: updatedBooking.customer.email,
-                            bookingId: updatedBooking.bookingId,
-                            events: futureEventsForEmail
-                        }
-                    });
-                }
+                // Sende immer eine E-Mail (auch wenn keine zukünftigen Events mehr vorhanden sind)
+                await supabase.functions.invoke('send-smtp-email', {
+                    body: {
+                        type: 'update-booking',
+                        customerName: updatedBooking.customer.name,
+                        customerEmail: updatedBooking.customer.email,
+                        bookingId: updatedBooking.bookingId,
+                        events: futureEventsForEmail
+                    }
+                });
             } catch (emailError) {
                 console.warn("E-Mail-Funktion konnte nicht aufgerufen werden.", emailError);
             }
