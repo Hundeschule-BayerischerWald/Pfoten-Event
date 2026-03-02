@@ -2205,7 +2205,8 @@ const CustomerBookingView = ({ setView }) => {
     return html`
         <main class="main-container">
             <section class="events-section">
-                    <div class="events-container-box">
+                <${StaticStatusBanner} />
+                <div class="events-container-box">
                     <div class="month-navigator">
                         <h2>Eventliste Hundeschule</h2>
                     </div>
@@ -2579,6 +2580,7 @@ const App = () => {
                 </div>
             </div>
             
+            <${AppSwitcher} />
 
             <nav class="main-nav">
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => handleNavigate('booking')}>Eventliste</button>
