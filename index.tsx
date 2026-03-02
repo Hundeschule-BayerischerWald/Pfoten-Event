@@ -2480,7 +2480,7 @@ const App = () => {
                     `}
                 </div>
                 <div class="header-text">
-                    <h1><title>Netzwerk Canicanum</title></h1>
+                    <h1>Netzwerk Canicanum</h1>
                     <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
                 </div>
             </div>
