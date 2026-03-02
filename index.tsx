@@ -68,7 +68,6 @@ interface PromoModalData {
     updated_at: string;
 }
 
-
 // --- API-SCHICHT (Supabase) ---
 const api = {
     adminCancelBooking: async (bookingId: string, eventId: string): Promise<void> => {
@@ -406,7 +405,6 @@ const toInputTimeString = (date: Date): string => {
     return `${hours}:${minutes}`;
 };
 
-
 // --- KOMPONENTEN ---
 
 const ConfirmNavigationModal = ({ onConfirm, onCancel }) => {
@@ -624,7 +622,6 @@ const ForgotPasswordModal = ({ onClose }) => {
     `;
 };
 
-
 const EventItem = ({ event, onSelect, isSelected, isLocked }) => {
     const isFull = event.booked_capacity >= event.total_capacity;
     const remaining = event.total_capacity - event.booked_capacity;
@@ -776,7 +773,6 @@ const EmailExistsModal = ({ email, onClose, onGoToManage, onForgotPassword }) =>
         </div>
     `;
 };
-
 
 const EventFormModal = ({ event, onSave, onClose }) => {
     const [formData, setFormData] = useState({
@@ -1133,10 +1129,6 @@ const BookingOverview = ({ userRole }) => {
     const [cancelModalState, setCancelModalState] = useState({ isOpen: false, data: null, error: '', loading: false });
     const [sentEmails, setSentEmails] = useState(new Set());
     const [isSending, setIsSending] = useState(false);
-    const [testEmail, setTestEmail] = useState('');
-    const [testEmailType, setTestEmailType] = useState('no-show');
-    const [isSendingTest, setIsSendingTest] = useState(false);
-    const [testMessage, setTestMessage] = useState({ text: '', type: '' });
 
     const loadBookings = async () => {
         setLoading(true);
@@ -1233,68 +1225,7 @@ const BookingOverview = ({ userRole }) => {
         }
     };
 
-    const handleSendTestEmail = async (e) => {
-        e.preventDefault();
-        if (!testEmail) {
-            setTestMessage({ text: 'Bitte gib eine E-Mail-Adresse ein.', type: 'error' });
-            return;
-        }
-        setIsSendingTest(true);
-        setTestMessage({ text: '', type: '' });
-
-        try {
-            const body: any = {
-                type: testEmailType,
-                customerName: 'Max Mustermann (Test)',
-                customerEmail: testEmail,
-            };
-
-            if (testEmailType === 'no-show') {
-                body.event = {
-                    title: 'Test-Event: Welpenstunde',
-                    date: new Date().toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr'
-                };
-            } else if (testEmailType === 'new-booking' || testEmailType === 'update-booking') {
-                body.bookingId = 'TEST-BELLO-123';
-                body.events = [
-                    { 
-                        title: 'Test-Event: Welpenstunde', 
-                        date: new Date().toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
-                        location: 'Welpenwiese',
-                        category: 'Orchid'
-                    },
-                     { 
-                        title: 'Test-Event: Grunderziehung', 
-                        date: new Date(Date.now() + 86400000).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
-                        location: 'Hundeplatz Ascha',
-                        category: 'LimeGreen'
-                    }
-                ];
-            } else if (testEmailType === 'admin-cancellation') {
-                body.bookingId = 'TEST-BELLO-123';
-                body.cancelledEvent = {
-                     title: 'Test-Event: Welpenstunde (Storniert)', 
-                     date: new Date().toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr'
-                };
-                body.events = [
-                     { 
-                        title: 'Test-Event: Grunderziehung', 
-                        date: new Date(Date.now() + 86400000).toLocaleString('de-DE', { dateStyle: 'full', timeStyle: 'short' }) + ' Uhr',
-                        location: 'Hundeplatz Ascha',
-                        category: 'LimeGreen'
-                    }
-                ];
-            }
-
-            await supabase.functions.invoke('send-smtp-email', { body });
-            setTestMessage({ text: `Test-Mail (${testEmailType}) erfolgreich an ${testEmail} gesendet!`, type: 'success' });
-        } catch (err) {
-            setTestMessage({ text: 'Fehler: Test-Mail konnte nicht gesendet werden.', type: 'error' });
-        } finally {
-            setIsSendingTest(false);
-        }
-    };
-
+    
 
     if (loading) {
         return html`<div class="loading-state">Lade Buchungsübersicht...</div>`;
@@ -1305,37 +1236,7 @@ const BookingOverview = ({ userRole }) => {
 
     return html`
         <div class="booking-overview-container">
-            ${userRole === 'admin' && html`
-                <div class="email-test-container">
-                    <h4>System-E-Mails testen</h4>
-                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 0.5rem;">Sende dir selbst eine Vorschau der verschiedenen E-Mails, um das Design zu prüfen.</p>
-                    <form class="email-test-form" onSubmit=${handleSendTestEmail}>
-                        <input 
-                            type="email" 
-                            placeholder="Deine E-Mail-Adresse" 
-                            value=${testEmail} 
-                            onInput=${e => setTestEmail(e.target.value)} 
-                            required 
-                        />
-                        <select 
-                            value=${testEmailType} 
-                            onChange=${e => setTestEmailType(e.target.value)}
-                            style="padding: 0.5rem; border-radius: 4px; border: 1px solid #dee2e6;"
-                        >
-                            <option value="new-booking">Neue Buchung (Bestätigung)</option>
-                            <option value="no-show">Nicht erschienen (Nachfass-Mail)</option>
-                            <option value="update-booking">Buchungs-Update</option>
-                            <option value="admin-cancellation">Admin-Stornierung</option>
-                        </select>
-                        <button type="submit" class="btn btn-secondary btn-small" disabled=${isSendingTest}>
-                            ${isSendingTest ? 'Sendet...' : 'Test-Mail senden'}
-                        </button>
-                    </form>
-                    ${testMessage.text && html`
-                        <p class="message ${testMessage.type === 'error' ? 'error-message' : 'success-message'}">
-                            ${testMessage.text}
-                        </p>
-                    `}
+            
                 </div>
             `}
             ${eventsWithBookings.length === 0 ? html`<p class="empty-state">Keine relevanten Events mit Buchungen gefunden.</p>` :
@@ -2066,7 +1967,6 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
     `;
 };
 
-
 const CustomerBookingView = ({ setView }) => {
     const [allEvents, setAllEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
@@ -2347,7 +2247,6 @@ const App = () => {
     const [isBackConfirm, setIsBackConfirm] = useState(false);
     const [isEmbedMode, setIsEmbedMode] = useState(false);
 
-
     useEffect(() => {
         const handlePopState = (event: PopStateEvent) => {
             if (hasUnsavedChanges) {
@@ -2371,7 +2270,6 @@ const App = () => {
             window.removeEventListener('popstate', handlePopState);
         };
     }, [hasUnsavedChanges]);
-
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -2474,7 +2372,6 @@ const App = () => {
         };
         
         window.addEventListener('auth-error', handleAuthError);
-
 
         // Cleanup subscription on component unmount
         return () => {
@@ -2630,6 +2527,5 @@ const App = () => {
         `}
     `;
 };
-
 
 render(html`<${App} />`, document.getElementById('app'));
