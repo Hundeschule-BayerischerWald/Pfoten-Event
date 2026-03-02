@@ -430,91 +430,6 @@ const ConfirmNavigationModal = ({ onConfirm, onCancel }) => {
     `;
 };
 
-const AppSwitcher = () => {
-    const [isDragging, setIsDragging] = useState(false);
-    const [position, setPosition] = useState(0); // 0 to 100%
-    const sliderRef = useRef(null);
-
-    const handleStart = (e) => {
-        setIsDragging(true);
-    };
-
-    const handleMove = (e) => {
-        if (!isDragging || !sliderRef.current) return;
-        
-        const rect = sliderRef.current.getBoundingClientRect();
-        const clientX = e.type.includes('touch') ? (e.touches ? e.touches[0].clientX : e.clientX) : e.clientX;
-        const relativeX = clientX - rect.left;
-        let percentage = (relativeX / rect.width) * 100;
-        
-        // Clamp between 0 and 100
-        percentage = Math.max(0, Math.min(100, percentage));
-        setPosition(percentage);
-    };
-
-    const handleEnd = () => {
-        if (!isDragging) return;
-        setIsDragging(false);
-        
-        if (position > 85) {
-            // Trigger navigation
-            window.location.href = "https://pfotencard.vercel.app/";
-        } else {
-            // Snap back
-            setPosition(0);
-        }
-    };
-
-    useEffect(() => {
-        if (isDragging) {
-            window.addEventListener('mousemove', handleMove);
-            window.addEventListener('mouseup', handleEnd);
-            window.addEventListener('touchmove', handleMove);
-            window.addEventListener('touchend', handleEnd);
-        } else {
-            window.removeEventListener('mousemove', handleMove);
-            window.removeEventListener('mouseup', handleEnd);
-            window.removeEventListener('touchmove', handleMove);
-            window.removeEventListener('touchend', handleEnd);
-        }
-        return () => {
-            window.removeEventListener('mousemove', handleMove);
-            window.removeEventListener('mouseup', handleEnd);
-            window.removeEventListener('touchmove', handleMove);
-            window.removeEventListener('touchend', handleEnd);
-        };
-    }, [isDragging, position]);
-
-    return html`
-        <div class="app-slider-container">
-            <div class="slider-option-outer left ${position < 50 ? 'active' : ''}">
-                <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Card" class="segmented-icon" />
-                <span>Pfoten-Event</span>
-            </div>
-
-            <div class="slider-track" ref=${sliderRef}>
-                <div 
-                    class="slider-handle" 
-                    style=${{ 
-                        left: `calc(4px + (${position} / 100) * (100% - var(--handle-width) - 8px))`,
-                        transition: isDragging ? 'none' : 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
-                    }}
-                    onMouseDown=${handleStart}
-                    onTouchStart=${handleStart}
-                >
-                    <div class="handle-inner"></div>
-                </div>
-            </div>
-
-            <div class="slider-option-outer right ${position >= 50 ? 'active' : ''}">
-                <img src="https://hs-bw.com/wp-content/uploads/2024/02/WhatsApp-Huschu.png" alt="Card" class="segmented-icon" />
-                <span>Pfoten-Card</span>
-            </div>
-            
-            <div class="slider-hint-full">Schiebe nach rechts zum Wechseln</div>
-        </div>
-    `;
-};
 
 const PromoModal = ({ data, onClose }) => {
     if (!data.image_url) return null;
@@ -529,13 +444,6 @@ const PromoModal = ({ data, onClose }) => {
     `;
 };
 
-const StaticStatusBanner = () => {
-    return html`
-        <div class="static-status-info" role="status">
-            <p>Den Status findest du ab sofort nur noch in unserer neuen App!</p>
-        </div>
-    `;
-};
 
 const EventLegend = () => {
     return html`
@@ -1073,7 +981,7 @@ const MonitorView = () => {
         <div class="monitor-view">
             <header class="monitor-header">
                 <div class="monitor-brand">
-                    <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Logo" class="monitor-logo" />
+                    <img src="https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png" alt="Logo" class="monitor-logo" />
                     <div class="monitor-title">
                         <h1>Pfoten-Event Monitor</h1>
                         <p>Willkommen in der Hundeschule</p>
@@ -1088,7 +996,7 @@ const MonitorView = () => {
             <main class="monitor-content">
                 ${layout === 'idle' && html`
                     <div class="monitor-idle">
-                        <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Logo" class="monitor-idle-logo" />
+                        <img src="https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png" alt="Logo" class="monitor-idle-logo" />
                         <h2>Kein Kurs aktuell</h2>
                         <p>Der nächste Kurs findet am ${nextEvent ? formatDate(nextEvent.date) + ' um ' + formatTime(nextEvent.date) : 'demnächst'} statt.</p>
                     </div>
@@ -1338,7 +1246,7 @@ const BookingOverview = ({ userRole }) => {
                     `}
                 </div>
             `}
-            ${eventsWithBookings.length === 0 ? html`<p class="empty-state">Keine relevanten Events mit Buchungen gefunden.</p>` :
+            ${eventsWithBookings.length === 0 ? html`<p class="empty-state">Keine relevanten Events mit Buchungen gefunden.</p>` : (
             eventsWithBookings.map(event => {
                 const participants = event.bookings_events
                     .map(be => be.bookings)
@@ -1411,7 +1319,7 @@ const BookingOverview = ({ userRole }) => {
                         `}
                     </div>
                 `;
-            })}
+            }))}
         </div>
         <${ConfirmActionModal} 
             isOpen=${confirmModalState.isOpen}
@@ -1919,7 +1827,9 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
                         location: e.location,
                         category: e.category
                     }));
-                // Sende die E-Mail auch dann, wenn keine zukünftigen Events mehr vorhanden sind
+
+                // Sende die E-Mail nur, wenn es zukünftige Events gibt, über die berichtet werden kann
+                if (futureEventsForEmail.length > 0) {
                     await supabase.functions.invoke('send-smtp-email', {
                         body: {
                             type: 'update-booking',
@@ -1927,6 +1837,7 @@ const BookingManagementPortal = ({ setView, initialBookingId, setHasUnsavedChang
                             customerEmail: updatedBooking.customer.email,
                             bookingId: updatedBooking.bookingId,
                             events: futureEventsForEmail
+                        }
                     });
                 }
             } catch (emailError) {
@@ -2202,7 +2113,6 @@ const CustomerBookingView = ({ setView }) => {
     return html`
         <main class="main-container">
             <section class="events-section">
-                <${StaticStatusBanner} />
                 <div class="events-container-box">
                     <div class="month-navigator">
                         <h2>Eventliste Hundeschule</h2>
@@ -2566,7 +2476,7 @@ const App = () => {
                     onClick=${installPromptEvent ? handleInstallClick : null}
                     title=${installPromptEvent ? 'App auf diesem Gerät installieren' : ''}
                 >
-                    <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Pfoten-Event Logo" class="header-logo" />
+                    <img src="https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png" alt="Pfoten-Event Logo" class="header-logo" />
                     ${installPromptEvent && html`
                         <span class="install-prompt-text">App installieren</span>
                     `}
@@ -2577,7 +2487,6 @@ const App = () => {
                 </div>
             </div>
             
-            <${AppSwitcher} />
 
             <nav class="main-nav">
                 <button class=${`btn ${view === 'booking' ? 'btn-primary' : 'btn-secondary'}`} onClick=${() => handleNavigate('booking')}>Eventliste</button>
