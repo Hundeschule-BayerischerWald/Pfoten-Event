@@ -487,7 +487,7 @@ const AppSwitcher = () => {
         <div class="app-slider-container">
             <div class="slider-option-outer left ${position < 50 ? 'active' : ''}">
                 <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Card" class="segmented-icon" />
-                <span>Pfoten-Event</span>
+                <span>Netzwerk Canicanum</span>
             </div>
 
             <div class="slider-track" ref=${sliderRef}>
@@ -1071,7 +1071,7 @@ const MonitorView = () => {
                 <div class="monitor-brand">
                     <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Logo" class="monitor-logo" />
                     <div class="monitor-title">
-                        <h1>Pfoten-Event Monitor</h1>
+                        <h1>Netzwerk Canicanum Monitor</h1>
                         <p>Willkommen in der Hundeschule</p>
                     </div>
                 </div>
@@ -2462,13 +2462,13 @@ const App = () => {
                     onClick=${installPromptEvent ? handleInstallClick : null}
                     title=${installPromptEvent ? 'App auf diesem Gerät installieren' : ''}
                 >
-                    <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Pfoten-Event Logo" class="header-logo" />
+                    <img src="https://hs-bw.com/wp-content/uploads/2025/10/Pfoten-Card-Icon.png" alt="Netzwerk Canicanum Logo" class="header-logo" />
                     ${installPromptEvent && html`
                         <span class="install-prompt-text">App installieren</span>
                     `}
                 </div>
                 <div class="header-text">
-                    <h1>Pfoten-Event</h1>
+                    <h1>Netzwerk Canicanum</h1>
                     <p>Wähle deine Wunschtermine, verwalte deine Buchungen</p>
                 </div>
             </div>
