@@ -1236,9 +1236,6 @@ const BookingOverview = ({ userRole }) => {
 
     return html`
         <div class="booking-overview-container">
-            
-                </div>
-            `}
             ${eventsWithBookings.length === 0 ? html`<p class="empty-state">Keine relevanten Events mit Buchungen gefunden.</p>` :
             eventsWithBookings.map(event => {
                 const participants = event.bookings_events
