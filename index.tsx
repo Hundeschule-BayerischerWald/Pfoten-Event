@@ -2115,7 +2115,7 @@ const CustomerBookingView = ({ setView }) => {
             <section class="events-section">
                 <div class="events-container-box">
                     <div class="month-navigator">
-                        <h2>Eventliste Hundeschule</h2>
+                        <h2>Eventübersicht</h2>
                     </div>
                     <${EventLegend} />
                     <div class="event-list-container">
