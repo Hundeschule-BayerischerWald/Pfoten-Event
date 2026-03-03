@@ -2115,7 +2115,7 @@ const CustomerBookingView = ({ setView }) => {
                     <div class="month-navigator">
                         <h2>Eventübersicht</h2>
                     </div>
-                    <${EventLegend} />
+                    
                     <div class="event-list-container">
                         ${eventsByWeek.length > 0 ? eventsByWeek.map(weekGroup => html`
                             <div class="week-group" key=${weekGroup.weekHeader}>
