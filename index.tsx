@@ -569,24 +569,25 @@ const EventItem = ({ event, onSelect, isSelected, isLocked }) => {
                 />`}
             </div>
             <label for=${isFull || isLocked ? null : event.id} class="event-main-col">
-                <span class="event-title">${event.title}</span>
+                <div class="event-main-header">
+                    <span class="event-title">${event.title}</span>
+                    <span class=${`event-capacity ${isFull ? 'capacity-full' : ''}`}>${isLocked 
+                        ? 'Vergangen' 
+                        : isFull 
+                            ? 'Leider Ausgebucht' 
+                            : `${remaining} ${remaining === 1 ? 'Platz' : 'Plätze'} noch frei`}
+                    </span>
+                </div>
                 <div class="event-time-location">
-                    <span class="time-icon">⏰</span>
+                    <span class="icon-dot"></span>
                     <span>${formatTime(event.date)}</span>
                 </div>
                 <div class="event-location">
-                    <span class="location-icon">📍</span>
+                    <span class="icon-dot"></span>
                     <span>${event.location}</span>
                 </div>
                 ${event.infotext && event.infotext.trim() !== '' && html`<div class="event-description">${event.infotext}</div>`}
             </label>
-            <div class=${`event-capacity ${isFull ? 'capacity-full' : ''}`}>
-                ${isLocked 
-                    ? 'Vergangen' 
-                    : isFull 
-                        ? 'Leider Ausgebucht' 
-                        : `${remaining} ${remaining === 1 ? 'Platz' : 'Plätze'} noch frei`}
-            </div>
         </li>
     `;
 };

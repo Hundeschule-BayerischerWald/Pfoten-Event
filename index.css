@@ -680,6 +680,23 @@ body {
 .event-category-darkkhaki .event-main-col { background-color: DarkKhaki; color: var(--text-on-colored-bg); }
 .event-category-tomato .event-main-col { background-color: Tomato; color: var(--text-on-colored-bg); }
 
+/* Header inside the main column that arranges title and capacity side-by-side */
+.event-main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+}
+
+/* Minimalistic dot icon used for time and location lines */
+.icon-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--text-on-colored-bg);
+    display: inline-block;
+}
+
 
 .event-details {
     flex-grow: 1;
