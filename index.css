@@ -622,7 +622,7 @@ body {
 }
 .event-title {
     /* Increase font size for the event title to make it more prominent */
-    font-size: 1 rem;
+    font-size: 1.2rem;
     font-weight: 600;
 }
 .event-description {
@@ -651,14 +651,39 @@ body {
 }
 
 /* Category-specific text colors for the date column */
-.event-category-orchid .event-date-col { color: Orchid; }
-.event-category-limegreen .event-date-col { color: LimeGreen; }
-.event-category-skyblue .event-date-col { color: SkyBlue; }
-.event-category-peru .event-date-col { color: Peru; }
-.event-category-gold .event-date-col { color: Gold; }
-.event-category-white .event-date-col { color: #F6F6C9; }
-.event-category-darkkhaki .event-date-col { color: DarkKhaki; }
-.event-category-tomato .event-date-col { color: Tomato; }
+/* Category-specific styling for the date column: use the same background and text colors as the main column */
+.event-category-orchid .event-date-col {
+    background-color: Orchid;
+    color: var(--text-on-colored-bg);
+}
+.event-category-limegreen .event-date-col {
+    background-color: LimeGreen;
+    color: var(--text-on-colored-bg);
+}
+.event-category-skyblue .event-date-col {
+    background-color: SkyBlue;
+    color: var(--text-on-colored-bg);
+}
+.event-category-peru .event-date-col {
+    background-color: Peru;
+    color: var(--text-on-colored-bg);
+}
+.event-category-gold .event-date-col {
+    background-color: Gold;
+    color: var(--text-on-colored-bg);
+}
+.event-category-white .event-date-col {
+    background-color: #F6F6C9;
+    color: var(--text-on-colored-bg);
+}
+.event-category-darkkhaki .event-date-col {
+    background-color: DarkKhaki;
+    color: var(--text-on-colored-bg);
+}
+.event-category-tomato .event-date-col {
+    background-color: Tomato;
+    color: var(--text-on-colored-bg);
+}
 
 /* Category-specific backgrounds for the main information column */
 .event-category-orchid .event-main-col { background-color: Orchid; color: var(--text-on-colored-bg); }
@@ -682,7 +707,7 @@ body {
 .event-tags {
     display: flex;
     gap: 0.5rem;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     flex-wrap: wrap;
 }
 
