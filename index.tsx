@@ -38,6 +38,7 @@ interface Event {
     booked_capacity: number; // snake_case from db
     category: string;
     trainer: string | null;
+    infotext: string | null;
 }
 
 interface Customer {
@@ -551,6 +552,7 @@ const EventItem = ({ event, onSelect, isSelected, isLocked }) => {
             />`}
             <label for=${isFull || isLocked ? null : event.id} class="event-details">
                 <span>${formatDate(event.date)} – ${formatTime(event.date)} – ${event.title} – ${event.location}</span>
+                ${event.infotext && event.infotext.trim() !== '' && html`<div class="event-infotext">${event.infotext}</div>`}
             </label>
             <div class="event-capacity ${isFull ? 'capacity-full' : ''}">
                 ${isLocked ? 'Vergangen' : isFull ? 'Leider Ausgebucht' : `${remaining} ${remaining === 1 ? 'Platz' : 'Plätze'} noch frei`}
@@ -695,6 +697,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
         totalCapacity: 6,
         category: Object.keys(EVENT_CATEGORIES)[0],
         trainer: '',
+        infotext: '',
     });
 
     useEffect(() => {
@@ -707,6 +710,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
                 totalCapacity: event.total_capacity,
                 category: event.category,
                 trainer: event.trainer || '',
+                            infotext: event.infotext || '',
             });
         } else {
              const defaultDate = new Date();
@@ -719,6 +723,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
                 totalCapacity: 6,
                 category: Object.keys(EVENT_CATEGORIES)[0],
                 trainer: '',
+                            infotext: '',
             });
         }
     }, [event]);
@@ -737,6 +742,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
             totalCapacity: Number(formData.totalCapacity),
             category: formData.category,
             trainer: formData.trainer || null,
+                    infotext: (formData.infotext && formData.infotext.trim() !== '') ? formData.infotext : null,
         };
         onSave(eventData);
     };
@@ -787,8 +793,14 @@ const EventFormModal = ({ event, onSave, onClose }) => {
                                 ${TRAINERS.map(t => html`<option key=${t} value=${t}>${t}</option>`)}
                             </select>
                         </div>
+                    
+                        <div class="form-group">
+                            <label for="infotext">Infotext</label>
+                            <textarea id="infotext" name="infotext" rows="4" value=${formData.infotext} onInput=${handleChange} placeholder="Optionaler Infotext (nur Anzeige im Frontend)"></textarea>
+                        </div>
+
                     </div>
-                    <div class="modal-footer">
+                    <div class=\"modal-footer\">
                          <button type="button" class="btn btn-secondary" onClick=${onClose}>Abbrechen</button>
                          <button type="submit" class="btn btn-primary">Speichern</button>
                     </div>
