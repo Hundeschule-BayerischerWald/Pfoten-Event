@@ -553,12 +553,13 @@ body {
 .event-category-tomato { background-color: Tomato; }
 
 /* === New Event Item Layout === */
-/* This layout divides the event card into three columns: a date column, a main content column and a capacity column. */
+/* This layout divides the event card into two columns: a date column and a main content column.  */
 .new-event-item {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto 1fr;
     gap: 1rem;
-    align-items: flex-start;
+    /* Stretch items so that both columns have equal height */
+    align-items: stretch;
     padding: 1rem;
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
@@ -575,7 +576,7 @@ body {
     border-radius: var(--border-radius);
     padding: 0.5rem;
     min-width: 64px;
-    height: 100%;
+    /* Height will be stretched by the grid container; no explicit height necessary */
 }
 .event-date-col span {
     display: block;
