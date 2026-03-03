@@ -623,7 +623,7 @@ body {
 .event-title {
     /* Increase font size for the event title to make it more prominent */
     font-size: 1 rem;
-    font-weight: 400;
+    font-weight: 600;
 }
 .event-description {
     margin-top: 0.5rem;
