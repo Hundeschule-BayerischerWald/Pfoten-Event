@@ -623,7 +623,7 @@ body {
 }
 .event-title {
     /* Increase font size for the event title to make it more prominent */
-    font-size: 1rem;
+    font-size: 1.2rem;
     font-weight: 600;
 }
 .event-description {
@@ -708,7 +708,7 @@ body {
 .event-tags {
     display: flex;
     gap: 0.5rem;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     flex-wrap: wrap;
 }
 
@@ -747,6 +747,51 @@ body {
 /* Remove the old dot icon as we use inline SVGs now */
 .icon-dot {
     display: none;
+}
+
+/* Responsive layout for small screens */
+@media (max-width: 600px) {
+  /* Stack the date column and main content vertically */
+  .new-event-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  /* Layout the date information and checkbox in a single row */
+  .event-date-col {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    min-width: auto;
+    width: 100%;
+    padding: 0.5rem;
+  }
+  /* Align month, day and weekday horizontally on small screens */
+  .event-date-info {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 0.5rem;
+  }
+  /* Position checkbox to the right */
+  .event-select-checkbox {
+    margin-top: 0;
+    margin-left: auto;
+  }
+  /* Ensure the main column spans full width */
+  .event-main-col {
+    width: 100%;
+    padding: 0.75rem;
+  }
+  /* On mobile, stack the title and capacity in the header */
+  .event-main-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  /* Align capacity tag to the start */
+  .new-event-item .event-capacity {
+    align-self: flex-start;
+  }
 }
 
 
