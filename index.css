@@ -623,7 +623,7 @@ body {
 }
 .event-title {
     /* Increase font size for the event title to make it more prominent */
-    font-size: 1.2rem;
+    font-size: 1rem;
     font-weight: 600;
 }
 .event-description {
@@ -708,7 +708,7 @@ body {
 .event-tags {
     display: flex;
     gap: 0.5rem;
-    margin-top: 0.5rem;
+    margin-top: 1rem;
     flex-wrap: wrap;
 }
 
