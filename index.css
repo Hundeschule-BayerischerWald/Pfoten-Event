@@ -552,6 +552,104 @@ body {
 .event-category-darkkhaki { background-color: DarkKhaki; }
 .event-category-tomato { background-color: Tomato; }
 
+/* === New Event Item Layout === */
+/* This layout divides the event card into three columns: a date column, a main content column and a capacity column. */
+.new-event-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--surface-color) !important;
+}
+
+/* Left-hand date column */
+.event-date-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--background-color);
+    border-radius: var(--border-radius);
+    padding: 0.5rem;
+    min-width: 64px;
+}
+.event-date-col span {
+    display: block;
+    text-align: center;
+    line-height: 1;
+}
+.event-month {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+.event-day {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+.event-weekday {
+    font-size: 0.75rem;
+}
+.event-select-checkbox {
+    margin-top: 0.5rem;
+}
+
+/* Main column with title, time/location and description */
+.event-main-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    cursor: pointer;
+}
+.event-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.event-title {
+    font-size: 1rem;
+    font-weight: 600;
+}
+.event-time-location {
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+}
+.event-description {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+}
+
+/* Capacity column styling */
+.new-event-item .event-capacity {
+    font-weight: 600;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+/* Disabled state for new event items */
+.new-event-item.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+.new-event-item.disabled .event-date-col,
+.new-event-item.disabled .event-main-col,
+.new-event-item.disabled .event-capacity {
+    text-decoration: line-through;
+}
+
+/* Category-specific text colors for the date column */
+.event-category-orchid .event-date-col { color: Orchid; }
+.event-category-limegreen .event-date-col { color: LimeGreen; }
+.event-category-skyblue .event-date-col { color: SkyBlue; }
+.event-category-peru .event-date-col { color: Peru; }
+.event-category-gold .event-date-col { color: Gold; }
+.event-category-white .event-date-col { color: #F6F6C9; }
+.event-category-darkkhaki .event-date-col { color: DarkKhaki; }
+.event-category-tomato .event-date-col { color: Tomato; }
+
 
 .event-details {
     flex-grow: 1;

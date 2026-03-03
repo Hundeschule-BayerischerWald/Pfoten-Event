@@ -535,27 +535,50 @@ const ForgotPasswordModal = ({ onClose }) => {
 
 
 const EventItem = ({ event, onSelect, isSelected, isLocked }) => {
+    // Determine capacity state
     const isFull = event.booked_capacity >= event.total_capacity;
     const remaining = event.total_capacity - event.booked_capacity;
     const isDisabled = isFull || isLocked;
+    // Generate a class name based off the category (used for coloring)
     const categoryClass = `event-category-${event.category.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-
+    // Format date parts for the new layout
+    const dateObj = new Date(event.date);
+    const month = dateObj.toLocaleDateString('de-DE', { month: 'short' });
+    const day = dateObj.toLocaleDateString('de-DE', { day: '2-digit' });
+    const weekday = dateObj.toLocaleDateString('de-DE', { weekday: 'short' });
+    // Compose the HTML for an event list item.  The item is divided into three columns:
+    //  - A left column with the date and the optional selection checkbox
+    //  - A main column with title, time/location and optional description
+    //  - A right column with the capacity/free spots indicator
     return html`
-        <li class=${`event-item ${isDisabled ? 'disabled' : ''} ${categoryClass}`}>
-             ${!isFull && !isLocked && html`<input 
-                type="checkbox" 
-                id=${event.id}
-                checked=${isSelected}
-                onChange=${() => onSelect(event.id)}
-                disabled=${isDisabled}
-                aria-label=${`Event ${event.title} auswählen`}
-            />`}
-            <label for=${isFull || isLocked ? null : event.id} class="event-details">
-                <span>${formatDate(event.date)} – ${formatTime(event.date)} – ${event.title} – ${event.location}</span>
-                ${event.infotext && event.infotext.trim() !== '' && html`<div class="event-infotext">${event.infotext}</div>`}
+        <li class=${`event-item new-event-item ${isDisabled ? 'disabled' : ''} ${categoryClass}`}>
+            <div class="event-date-col">
+                <span class="event-month">${month}</span>
+                <span class="event-day">${day}</span>
+                <span class="event-weekday">${weekday}</span>
+                ${!isFull && !isLocked && html`<input 
+                    type="checkbox"
+                    id=${event.id}
+                    checked=${isSelected}
+                    onChange=${() => onSelect(event.id)}
+                    disabled=${isDisabled}
+                    aria-label=${`Event ${event.title} auswählen`}
+                    class="event-select-checkbox"
+                />`}
+            </div>
+            <label for=${isFull || isLocked ? null : event.id} class="event-main-col">
+                <div class="event-header">
+                    <span class="event-title">${event.title}</span>
+                    <span class="event-time-location">${formatTime(event.date)} – ${event.location}</span>
+                </div>
+                ${event.infotext && event.infotext.trim() !== '' && html`<div class="event-description">${event.infotext}</div>`}
             </label>
-            <div class="event-capacity ${isFull ? 'capacity-full' : ''}">
-                ${isLocked ? 'Vergangen' : isFull ? 'Leider Ausgebucht' : `${remaining} ${remaining === 1 ? 'Platz' : 'Plätze'} noch frei`}
+            <div class=${`event-capacity ${isFull ? 'capacity-full' : ''}`}>
+                ${isLocked 
+                    ? 'Vergangen' 
+                    : isFull 
+                        ? 'Leider Ausgebucht' 
+                        : `${remaining} ${remaining === 1 ? 'Platz' : 'Plätze'} noch frei`}
             </div>
         </li>
     `;
