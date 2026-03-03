@@ -534,46 +534,57 @@ const ForgotPasswordModal = ({ onClose }) => {
 };
 
 
+
 const EventItem = ({ event, onSelect, isSelected, isLocked }) => {
     const isFull = event.booked_capacity >= event.total_capacity;
     const remaining = event.total_capacity - event.booked_capacity;
     const isDisabled = isFull || isLocked;
     const categoryClass = `event-category-${event.category.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
 
+    const day = new Intl.DateTimeFormat('de-DE', { day: '2-digit' }).format(event.date);
+    const month = new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(event.date);
+    const weekday = new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(event.date);
+
     return html`
-        <li class=${`event-item ${isDisabled ? 'disabled' : ''} ${categoryClass}`}>
-             ${!isFull && !isLocked && html`<input 
-                type="checkbox" 
-                id=${event.id}
-                checked=${isSelected}
-                onChange=${() => onSelect(event.id)}
-                disabled=${isDisabled}
-                aria-label=${`Event ${event.title} auswählen`}
-            />`}
-            <label for=${isFull || isLocked ? null : event.id} class="event-details">
-                <span>${formatDate(event.date)} – ${formatTime(event.date)} – ${event.title} – ${event.location}</span>
-                ${event.infotext && event.infotext.trim() !== '' && html`<div class="event-infotext">${event.infotext}</div>`}
-            </label>
-            <div class="event-capacity ${isFull ? 'capacity-full' : ''}">
-                ${isLocked ? 'Vergangen' : isFull ? 'Leider Ausgebucht' : `${remaining} ${remaining === 1 ? 'Platz' : 'Plätze'} noch frei`}
+        <li class="event-row">
+            <div class="event-date-box" style=${{ background: '#f4f4f4' }}>
+                <div class="event-date-day ${categoryClass}" style=${{ fontSize: '1.8rem', fontWeight: 'bold' }}>${day}</div>
+                <div class="event-date-month ${categoryClass}">${month}</div>
+                <div class="event-date-weekday ${categoryClass}" style=${{ fontSize: '0.8rem' }}>${weekday}</div>
+            </div>
+
+            <div class=${`event-card ${categoryClass} ${isDisabled ? 'disabled' : ''}`}>
+                ${!isFull && !isLocked && html`<input 
+                    type="checkbox" 
+                    id=${event.id}
+                    checked=${isSelected}
+                    onChange=${() => onSelect(event.id)}
+                    disabled=${isDisabled}
+                    aria-label=${`Event ${event.title} auswählen`}
+                />`}
+
+                <div class="event-card-content">
+                    <div class="event-card-header">
+                        <h3 class="event-title">${event.title}</h3>
+                        <div class="event-capacity ${isFull ? 'capacity-full' : ''}">
+                            ${isLocked ? 'Vergangen' : isFull ? 'Leider Ausgebucht' : `${remaining} ${remaining === 1 ? 'Platz' : 'Plätze'} frei`}
+                        </div>
+                    </div>
+
+                    <div class="event-meta">
+                        <span>${formatTime(event.date)}</span>
+                        <span>• ${event.location}</span>
+                    </div>
+
+                    ${event.infotext && event.infotext.trim() !== '' && html`
+                        <div class="event-infotext">${event.infotext}</div>
+                    `}
+                </div>
             </div>
         </li>
     `;
 };
 
-const BookingPanel = ({ selectedEvents, customer, onCustomerChange, onSubmit, error, agreedAGB, onAgreedAGBChange, agreedPrivacy, onAgreedPrivacyChange }) => {
-    if (selectedEvents.length === 0) {
-        return html`
-            <div class="booking-summary">
-                <h3>Deine Auswahl</h3>
-                <p class="empty-state">Wähle ein oder mehrere Events aus, um mit der Anmeldung zu beginnen.</p>
-            </div>
-        `;
-    }
-
-    const handleInput = (e) => {
-        onCustomerChange({ ...customer, [e.target.name]: e.target.value });
-    };
     
     const showSubmitButton =
         customer.name.trim() !== '' &&
