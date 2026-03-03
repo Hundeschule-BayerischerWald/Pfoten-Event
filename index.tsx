@@ -38,6 +38,7 @@ interface Event {
     booked_capacity: number; // snake_case from db
     category: string;
     trainer: string | null;
+    infotext: string | null;
 }
 
 interface Customer {
@@ -539,58 +540,22 @@ const EventItem = ({ event, onSelect, isSelected, isLocked }) => {
     const isDisabled = isFull || isLocked;
     const categoryClass = `event-category-${event.category.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
 
-    const day = new Intl.DateTimeFormat('de-DE', { day: '2-digit' }).format(event.date);
-    const month = new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(event.date);
-    const weekday = new Intl.DateTimeFormat('de-DE', { weekday: 'short' }).format(event.date);
-
     return html`
-        <li class="event-row">
-            <div class="event-date-box" style=${{ background: '#f4f4f4', padding: '12px', textAlign: 'center', minWidth: '90px' }}>
-                <div class=${categoryClass} style=${{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-                    ${day}
-                </div>
-                <div class=${categoryClass}>
-                    ${month}
-                </div>
-                <div class=${categoryClass} style=${{ fontSize: '0.8rem' }}>
-                    ${weekday}
-                </div>
-            </div>
-
-            <div class=${`event-card ${categoryClass} ${isDisabled ? 'disabled' : ''}`} style=${{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                ${!isFull && !isLocked && html`
-                    <input 
-                        type="checkbox" 
-                        id=${event.id}
-                        checked=${isSelected}
-                        onChange=${() => onSelect(event.id)}
-                        disabled=${isDisabled}
-                        aria-label=${`Event ${event.title} auswählen`}
-                    />
-                `}
-
-                <div style=${{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <h3 style=${{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold' }}>
-                        ${event.title}
-                    </h3>
-                    <div class=${`event-capacity ${isFull ? 'capacity-full' : ''}`}>
-                        ${isLocked 
-                            ? 'Vergangen' 
-                            : isFull 
-                                ? 'Leider Ausgebucht' 
-                                : `${remaining} ${remaining === 1 ? 'Platz' : 'Plätze'} frei`}
-                    </div>
-                </div>
-
-                <div style=${{ fontSize: '0.95rem' }}>
-                    ${formatTime(event.date)} • ${event.location}
-                </div>
-
-                ${event.infotext && event.infotext.trim() !== '' && html`
-                    <div class="event-infotext" style=${{ marginTop: '4px', fontSize: '0.95rem' }}>
-                        ${event.infotext}
-                    </div>
-                `}
+        <li class=${`event-item ${isDisabled ? 'disabled' : ''} ${categoryClass}`}>
+             ${!isFull && !isLocked && html`<input 
+                type="checkbox" 
+                id=${event.id}
+                checked=${isSelected}
+                onChange=${() => onSelect(event.id)}
+                disabled=${isDisabled}
+                aria-label=${`Event ${event.title} auswählen`}
+            />`}
+            <label for=${isFull || isLocked ? null : event.id} class="event-details">
+                <span>${formatDate(event.date)} – ${formatTime(event.date)} – ${event.title} – ${event.location}</span>
+                ${event.infotext && event.infotext.trim() !== '' && html`<div class="event-infotext">${event.infotext}</div>`}
+            </label>
+            <div class="event-capacity ${isFull ? 'capacity-full' : ''}">
+                ${isLocked ? 'Vergangen' : isFull ? 'Leider Ausgebucht' : `${remaining} ${remaining === 1 ? 'Platz' : 'Plätze'} noch frei`}
             </div>
         </li>
     `;
@@ -732,6 +697,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
         totalCapacity: 6,
         category: Object.keys(EVENT_CATEGORIES)[0],
         trainer: '',
+        infotext: '',
     });
 
     useEffect(() => {
@@ -744,6 +710,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
                 totalCapacity: event.total_capacity,
                 category: event.category,
                 trainer: event.trainer || '',
+                            infotext: event.infotext || '',
             });
         } else {
              const defaultDate = new Date();
@@ -756,6 +723,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
                 totalCapacity: 6,
                 category: Object.keys(EVENT_CATEGORIES)[0],
                 trainer: '',
+                            infotext: '',
             });
         }
     }, [event]);
@@ -774,6 +742,7 @@ const EventFormModal = ({ event, onSave, onClose }) => {
             totalCapacity: Number(formData.totalCapacity),
             category: formData.category,
             trainer: formData.trainer || null,
+                    infotext: (formData.infotext && formData.infotext.trim() !== '') ? formData.infotext : null,
         };
         onSave(eventData);
     };
@@ -824,8 +793,14 @@ const EventFormModal = ({ event, onSave, onClose }) => {
                                 ${TRAINERS.map(t => html`<option key=${t} value=${t}>${t}</option>`)}
                             </select>
                         </div>
+                    
+                        <div class="form-group">
+                            <label for="infotext">Infotext</label>
+                            <textarea id="infotext" name="infotext" rows="4" value=${formData.infotext} onInput=${handleChange} placeholder="Optionaler Infotext (nur Anzeige im Frontend)"></textarea>
+                        </div>
+
                     </div>
-                    <div class="modal-footer">
+                    <div class=\"modal-footer\">
                          <button type="button" class="btn btn-secondary" onClick=${onClose}>Abbrechen</button>
                          <button type="submit" class="btn btn-primary">Speichern</button>
                     </div>
