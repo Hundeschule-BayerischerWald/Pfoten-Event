@@ -553,9 +553,11 @@ const EventItem = ({ event, onSelect, isSelected, isLocked }) => {
     return html`
         <li class=${`event-item new-event-item ${isDisabled ? 'disabled' : ''} ${categoryClass}`}>
             <div class="event-date-col">
-                <span class="event-month">${month}</span>
-                <span class="event-day">${day}</span>
-                <span class="event-weekday">${weekday}</span>
+                <div class="event-date-info">
+                    <span class="event-month">${month}</span>
+                    <span class="event-day">${day}</span>
+                    <span class="event-weekday">${weekday}</span>
+                </div>
                 ${!isFull && !isLocked && html`<input 
                     type="checkbox"
                     id=${event.id}
@@ -567,9 +569,14 @@ const EventItem = ({ event, onSelect, isSelected, isLocked }) => {
                 />`}
             </div>
             <label for=${isFull || isLocked ? null : event.id} class="event-main-col">
-                <div class="event-header">
-                    <span class="event-title">${event.title}</span>
-                    <span class="event-time-location">${formatTime(event.date)} – ${event.location}</span>
+                <span class="event-title">${event.title}</span>
+                <div class="event-time-location">
+                    <span class="time-icon">⏰</span>
+                    <span>${formatTime(event.date)}</span>
+                </div>
+                <div class="event-location">
+                    <span class="location-icon">📍</span>
+                    <span>${event.location}</span>
                 </div>
                 ${event.infotext && event.infotext.trim() !== '' && html`<div class="event-description">${event.infotext}</div>`}
             </label>

@@ -558,7 +558,7 @@ body {
     display: grid;
     grid-template-columns: auto 1fr auto;
     gap: 1rem;
-    align-items: center;
+    align-items: flex-start;
     padding: 1rem;
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
@@ -570,11 +570,12 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
     background-color: var(--background-color);
     border-radius: var(--border-radius);
     padding: 0.5rem;
     min-width: 64px;
+    height: 100%;
 }
 .event-date-col span {
     display: block;
@@ -596,12 +597,23 @@ body {
     margin-top: 0.5rem;
 }
 
+/* Wrapper for date lines inside the date column */
+.event-date-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 /* Main column with title, time/location and description */
 .event-main-col {
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    align-items: flex-start;
     cursor: pointer;
+    background-color: var(--surface-color);
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
 }
 .event-header {
     display: flex;
@@ -612,14 +624,22 @@ body {
     font-size: 1rem;
     font-weight: 600;
 }
-.event-time-location {
+.event-time-location,
+.event-location {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
     font-size: 0.9rem;
-    color: var(--secondary-color);
+    color: var(--text-on-colored-bg);
+}
+.time-icon,
+.location-icon {
+    font-size: 0.9rem;
 }
 .event-description {
     margin-top: 0.5rem;
     font-size: 0.9rem;
-    color: var(--secondary-color);
+    color: var(--text-on-colored-bg);
 }
 
 /* Capacity column styling */
@@ -649,6 +669,16 @@ body {
 .event-category-white .event-date-col { color: #F6F6C9; }
 .event-category-darkkhaki .event-date-col { color: DarkKhaki; }
 .event-category-tomato .event-date-col { color: Tomato; }
+
+/* Category-specific backgrounds for the main information column */
+.event-category-orchid .event-main-col { background-color: Orchid; color: var(--text-on-colored-bg); }
+.event-category-limegreen .event-main-col { background-color: LimeGreen; color: var(--text-on-colored-bg); }
+.event-category-skyblue .event-main-col { background-color: SkyBlue; color: var(--text-on-colored-bg); }
+.event-category-peru .event-main-col { background-color: Peru; color: var(--text-on-colored-bg); }
+.event-category-gold .event-main-col { background-color: Gold; color: var(--text-on-colored-bg); }
+.event-category-white .event-main-col { background-color: #F6F6C9; color: var(--text-on-colored-bg); }
+.event-category-darkkhaki .event-main-col { background-color: DarkKhaki; color: var(--text-on-colored-bg); }
+.event-category-tomato .event-main-col { background-color: Tomato; color: var(--text-on-colored-bg); }
 
 
 .event-details {
