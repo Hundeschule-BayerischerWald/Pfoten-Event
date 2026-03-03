@@ -621,24 +621,14 @@ body {
     gap: 0.25rem;
 }
 .event-title {
-    font-size: 1rem;
+    /* Increase font size for the event title to make it more prominent */
+    font-size: 1.2rem;
     font-weight: 600;
-}
-.event-time-location,
-.event-location {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.9rem;
-    color: var(--text-on-colored-bg);
-}
-.time-icon,
-.location-icon {
-    font-size: 0.9rem;
 }
 .event-description {
     margin-top: 0.5rem;
-    font-size: 0.9rem;
+    /* Make the description slightly smaller to differentiate it from the main information */
+    font-size: 0.85rem;
     color: var(--text-on-colored-bg);
 }
 
@@ -688,13 +678,49 @@ body {
     width: 100%;
 }
 
-/* Minimalistic dot icon used for time and location lines */
+/* Container for the badges showing time and location */
+.event-tags {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Individual badge styling for time and location */
+.event-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    background-color: rgba(255, 255, 255, 0.3);
+    font-size: 0.8rem;
+    line-height: 1;
+}
+
+/* Let icons inside badges take the inherited text color */
+.event-tag .icon {
+    color: inherit;
+    /* Override margin set on .event-main-col .icon to avoid double spacing */
+    margin-right: 0;
+}
+
+/* General icon styling for time and location SVGs */
+.icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+}
+
+/* Ensure icons adopt the correct text color and spacing */
+.event-main-col .icon {
+    color: var(--text-on-colored-bg);
+    margin-right: 0.35rem;
+}
+
+/* Remove the old dot icon as we use inline SVGs now */
 .icon-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-color: var(--text-on-colored-bg);
-    display: inline-block;
+    display: none;
 }
 
 

@@ -578,13 +578,27 @@ const EventItem = ({ event, onSelect, isSelected, isLocked }) => {
                             : `${remaining} ${remaining === 1 ? 'Platz' : 'Plätze'} noch frei`}
                     </span>
                 </div>
-                <div class="event-time-location">
-                    <span class="icon-dot"></span>
-                    <span>${formatTime(event.date)}</span>
-                </div>
-                <div class="event-location">
-                    <span class="icon-dot"></span>
-                    <span>${event.location}</span>
+                <div class="event-tags">
+                    <div class="event-tag time-tag">
+                        <svg class="icon icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <!-- Outer ring -->
+                            <circle cx="12" cy="12" r="9" stroke-width="2"></circle>
+                            <!-- Hour hand (vertical) -->
+                            <line x1="12" y1="8" x2="12" y2="12" stroke-width="2"></line>
+                            <!-- Minute hand (horizontal) -->
+                            <line x1="12" y1="12" x2="15" y2="12" stroke-width="2"></line>
+                        </svg>
+                        <span>${formatTime(event.date)}</span>
+                    </div>
+                    <div class="event-tag location-tag">
+                        <svg class="icon icon-location" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <!-- Outer marker shape -->
+                            <path d="M12 2C8.686 2 6 4.686 6 8c0 5.25 6 12 6 12s6-6.75 6-12c0-3.314-2.686-6-6-6z" stroke-width="2"></path>
+                            <!-- Inner ring -->
+                            <circle cx="12" cy="8" r="2.5" stroke-width="2" stroke="currentColor" fill="none"></circle>
+                        </svg>
+                        <span>${event.location}</span>
+                    </div>
                 </div>
                 ${event.infotext && event.infotext.trim() !== '' && html`<div class="event-description">${event.infotext}</div>`}
             </label>
