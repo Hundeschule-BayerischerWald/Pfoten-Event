@@ -1,6 +1,6 @@
 {
-  "name": "Pfoten-Event",
-  "short_name": "Pfoten-Event",
+  "name": "Cani-App",
+  "short_name": "Cani-App",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
