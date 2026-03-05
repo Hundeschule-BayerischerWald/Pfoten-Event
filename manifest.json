@@ -6,7 +6,7 @@
   "display": "standalone",
   "background_color": "#f4f1ee",
   "theme_color": "#007bff",
-  "description": "Buchungstool für Events der Hundeschule.",
+  "description": "Buchungstool für Events von Canicanum.",
   "icons": [
     {
       "src": "https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png",
