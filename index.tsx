@@ -22,9 +22,9 @@ const EVENT_CATEGORIES = {
     "SkyBlue": { titles: ["Level 3 - Fortgeschrittene"], locations: ["Hundeplatz Ascha"] },
     "Peru": { titles: ["Level 4 - Master Class"], locations: ["Hundeplatz Ascha"] },
     "Gold": { titles: ["Trainerstunde"], locations: ["Nach Absprache"] },
-    "White": { titles: ["Theorie: Vorträge & Seminare"], locations: ["Hundeschule Innenbereich"] },
+    "White": { titles: ["Theorie: Vorträge & Seminare"], locations: ["Canicanum Innenbereich"] },
     "DarkKhaki": { titles: ["Praxis: Specials & Workshops"], locations: ["Stadtwald"] },
-    "Tomato": { titles: ["Prüfungs-Stunden"], locations: ["Hundeschule Innenbereich"] }
+    "Tomato": { titles: ["Prüfungs-Stunden"], locations: ["Canicanum Innenbereich"] }
 };
 
 const TRAINERS = ["Christian", "Sophie", "Sandra", "Susi", "Petra"];
@@ -1037,7 +1037,7 @@ const MonitorView = () => {
                     <img src="https://canicanum.de/wp-content/uploads/2026/03/Cani-App-icon.png" alt="Logo" class="monitor-logo" />
                     <div class="monitor-title">
                         <h1>Pfoten-Event Monitor</h1>
-                        <p>Willkommen in der Hundeschule</p>
+                        <p>Willkommen bei Canicanum</p>
                     </div>
                 </div>
                 <div class="monitor-clock">
@@ -2167,7 +2167,7 @@ const CustomerBookingView = ({ setView }) => {
 
                 <div class="events-container-box">
                     <div class="month-navigator">
-                        <h2>Eventliste Hundeschule</h2>
+                        <h2>Eventliste Canicanum</h2>
                     </div>
                     <${EventLegend} />
                     <div class="event-list-container">
