@@ -17,14 +17,12 @@ const html = htm.bind(h);
 const CANCELLATION_WINDOW_HOURS = 24; // Stornierungen/Änderungen nur bis 24h vor dem Event möglich
 
 const EVENT_CATEGORIES = {
-    "Orchid": { titles: ["Welpenstunde"], locations: ["Welpenwiese"] },
-    "LimeGreen": { titles: ["Level 2 - Grunderziehung"], locations: ["Der sichere Start"] },
-    "SkyBlue": { titles: ["Level 3 - Fortgeschrittene"], locations: ["Hundeplatz Ascha"] },
-    "Peru": { titles: ["Level 4 - Master Class"], locations: ["Hundeplatz Ascha"] },
-    "Gold": { titles: ["Trainerstunde"], locations: ["Nach Absprache"] },
+    "Orchid": { titles: ["Kopfruhe Events"], locations: ["Welpenwiese"] },
+    "LimeGreen": { titles: ["Therapiebegleithunde"], locations: ["Der sichere Start"] },
+    "SkyBlue": { titles: ["Dog´s Life Academy"], locations: ["Hundeplatz Ascha"] },
+    "Gold": { titles: ["Caniluma"], locations: ["Nach Absprache"] },
     "White": { titles: ["Theorie: Vorträge & Seminare"], locations: ["Canicanum Innenbereich"] },
-    "DarkKhaki": { titles: ["Praxis: Specials & Workshops"], locations: ["Stadtwald"] },
-    "Tomato": { titles: ["Prüfungs-Stunden"], locations: ["Canicanum Innenbereich"] }
+    "DarkKhaki": { titles: ["Canicanum"], locations: ["Stadtwald"] },
 };
 
 const TRAINERS = ["Christian", "Sophie", "Sandra", "Susi", "Petra"];
